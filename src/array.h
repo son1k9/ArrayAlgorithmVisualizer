@@ -8,11 +8,11 @@
 class Array {
 public:
     //Parameters: index, value
-    using GetCallback = std::function<void(int, int)>;
+    using GetCallback = void(*)(int, int);
     //Parameters: index, oldValue, newValue 
-    using SetCallback = std::function<void(int, int, int)>;
+    using SetCallback = void(*)(int, int, int);
     //Parameters: index1, index2 
-    using SwapCallback = std::function<void(int, int)>;
+    using SwapCallback = void(*)(int, int);
 
     bool callback = true;
 
@@ -62,15 +62,15 @@ public:
         }
     }
 
-    void setGetCallback(const GetCallback& callback) {
+    void setGetCallback(GetCallback callback) {
         getCallback = callback;
     }
 
-    void setSetCallback(const SetCallback& callback) {
+    void setSetCallback(SetCallback callback) {
         setCallback = callback;
     }
 
-    void setSwapCallback(const SwapCallback& callback) {
+    void setSwapCallback(SwapCallback callback) {
         swapCallback = callback;
     }
 };

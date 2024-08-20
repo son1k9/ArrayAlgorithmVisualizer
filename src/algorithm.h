@@ -3,15 +3,16 @@
 #include <concepts>
 #include "array.h"
 
-template <std::invocable<Array&> T>
 class Algorithm {
+public:
+    using AlgorithmFunction = void(*)(Array&);
 private:
     const std::string name;
-    const T func;
+    const AlgorithmFunction func;
 public:
-    Algorithm(const T& func, const std::string& name)
+    Algorithm(AlgorithmFunction func, const std::string& name)
         : name{ name }, func{ func } {}
-    void sort(Array& array) {
+    void use(Array& array) {
         func(array);
     }
 };
