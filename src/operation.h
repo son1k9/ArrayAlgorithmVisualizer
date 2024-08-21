@@ -1,4 +1,5 @@
 #pragma once
+#include <memory>
 
 enum class OperationType {
     Read,
@@ -6,31 +7,28 @@ enum class OperationType {
     Swap
 };
 
-class Operation {
-public:
-    const OperationType type;
-protected:
-    Operation(OperationType type) : type{ type } {};
+struct Operation {
+    const OperationType type{};
+    const int index{};
+    struct Data {
+        const int value1{};
+        const int value2{};
+    };
+
+    //Read: nullptr
+    //Write: value1 - oldValue, value2 - newValue
+    //Swap: value1 - index1, value2 - index2
+    const std::unique_ptr<Data> data = nullptr;
 };
 
-class ReadOperation : public Operation {
-public:
-    const int index;
-    ReadOperation(int index) : Operation(OperationType::Read), index{ index } {}
-};
+inline Operation CreateReadOperation(int index) {
+   return Operation{OperationType::Read, index};
+}
 
-class WriteOperation : public Operation {
-public:
-    const int index;
-    const int oldValue;
-    const int newValue;
-    WriteOperation(int index, int oldValue, int newValue)
-        : Operation(OperationType::Write), index{ index }, oldValue{ oldValue }, newValue{ newValue } {}
-};
+inline Operation CreateWriteOperation(int index, int oldValue, int newValue) {
+    return Operation{OperationType::Read, index, std::make_unique<Operation::Data>(oldValue, newValue)};
+}
 
-class SwapOperation : public Operation {
-public:
-    const int index1;
-    const int index2;
-    SwapOperation(int index1, int index2) : Operation(OperationType::Swap), index1{ index1 }, index2{ index2 } {}
-};
+Operation CreateSwapOperation(int index1, int index2) {
+    return Operation{OperationType::Swap, index1, std::make_unique<Operation::Data>(index2)};
+}
