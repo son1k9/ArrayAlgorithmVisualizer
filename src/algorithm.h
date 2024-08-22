@@ -9,6 +9,8 @@ struct Algorithm {
 
     Algorithm(AlgorithmFunction func, const std::string& name)
         : name{ name }, func{ func } {}
+    Algorithm(AlgorithmFunction func, std::string&& name)
+        : name{ name }, func{ func } {}
     void use(Array& array) const {
         func(array);
     }
