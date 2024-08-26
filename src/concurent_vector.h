@@ -8,7 +8,7 @@ template<class T>
 class ConcurentVector {
 private:
     std::vector<T> data;
-    std::mutex lock;
+    mutable std::mutex lock;
 
     void checkIndex(int index) const {
         assert((index >= 0 && index < data.size()));
@@ -18,8 +18,10 @@ public:
     ConcurentVector() = default;
     ConcurentVector(int size) : data(size) {}
 
-    void reserve(size_t size) {
-        data.reserve(size);
+    void clear() {
+        lock.lock();
+        data.clear();
+        lock.unlock();
     }
 
     void push_back(const T& elem) {
@@ -36,8 +38,9 @@ public:
 
     int size() const {
         lock.lock();
-        data.size();
+        const auto s = data.size();
         lock.unlock();
+        return s;
     }
 
     T& operator[](size_t index) {

@@ -9,28 +9,39 @@
 #include "concurent_vector.h"
 #include "algorithm.h"
 #include "sort.h" 
+#include "shuffle.h"
 #include "visual_array.h"
+
+inline constexpr int maxSize = 1024;
 
 class MainScreen {
 private:
-    enum class State {
-        Running,
-        Paused,
-        Idle
-    };
+    int size = 10;
+    int swapOperationDelay = 1;
+    int readOperationDelay = 1;
+    int writeOperationDelay = 1;
 
-    State currentState = State::Idle;
     std::vector<Algorithm> sortingAlgorithms;
     std::string sortingAlgorithmsString;
+    std::vector<Algorithm> shuffleAlgorithms;
+    std::string shuffleAlgorithmsString;
     VisualArray displayArray;
 
-    //GUI
     int chosenAlgorithm = 0;
     bool algorithmEdit = false;
-    int size = 10;
+    int chosenAlgorithmType = 0;
+    std::string algorithmTypeString;
+    bool algorithmTypeEdit = false;
     bool sizeEdit = false;
-    bool shuffle = false;
+    bool readDelayEdit = false;
+    bool writeDelayEdit = false;
+    bool swapDelayEdit = false;
     bool fullscreenMode = false;
+    const char* algorithmsStringPtr{};
+
+    bool isAlgorithmActive() {
+        return displayArray.getState() == VisualArray::State::Running || displayArray.getState() == VisualArray::State::Paused;
+    }
 
     void drawGui(const Rectangle& rect) {
         const Rectangle leftPanel{ rect.x, rect.y, rect.width, rect.height };
@@ -48,22 +59,59 @@ private:
                 controlY += gap + controlHeight;
                 return controlY;
                 };
+            const Rectangle labelAlgorithmType{ controlX, increaseY(), controlWidth, controlHeight };
+            const Rectangle comboBoxAlgType{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle labelAlgorithm{ controlX, increaseY(), controlWidth, controlHeight };
-            const Rectangle comboBoxAl{ controlX, increaseY(), controlWidth, controlHeight };
+            const Rectangle comboBoxAlg{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle labelSize{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle spinnerSize{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle checkboxShuffle{ controlX, increaseY(), controlHeight, controlHeight };
+            const Rectangle labelReadDelay{ controlX, increaseY(), controlWidth, controlHeight };
+            const Rectangle spinnerReadDelay{ controlX, increaseY(), controlWidth, controlHeight };
+            const Rectangle labelWriteDelay{ controlX, increaseY(), controlWidth, controlHeight };
+            const Rectangle spinnerWriteDelay{ controlX, increaseY(),  controlWidth, controlHeight };
+            const Rectangle labelSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
+            const Rectangle spinnerSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
             GuiSetStyle(DEFAULT, TEXT_SIZE, 22);
-            GuiLabel(labelAlgorithm, "Algorithm");
-            if (algorithmEdit) {
+            if (algorithmEdit || algorithmTypeEdit || isAlgorithmActive()) {
                 GuiLock();
             }
+            GuiLabel(labelSwapDelay, "Swap delay");
+            if (GuiSpinner(spinnerSwapDelay, NULL, &swapOperationDelay, 0, 10, swapDelayEdit)) {
+                swapDelayEdit = !swapDelayEdit;
+            }
+            GuiLabel(labelWriteDelay, "Write delay");
+            if (GuiSpinner(spinnerWriteDelay, NULL, &writeOperationDelay, 0, 10, writeDelayEdit)) {
+                writeDelayEdit = !writeDelayEdit;
+            }
+            GuiLabel(labelReadDelay, "Read delay");
+            if (GuiSpinner(spinnerReadDelay, NULL, &readOperationDelay, 0, 10, readDelayEdit)) {
+                readDelayEdit = !readDelayEdit;
+            }
             GuiLabel(labelSize, "Array size");
-            if (GuiSpinner(spinnerSize, NULL, &size, 2, 512, sizeEdit)) {
+            if (GuiSpinner(spinnerSize, NULL, &size, 2, maxSize, sizeEdit && !isAlgorithmActive())) {
                 sizeEdit = !sizeEdit;
             }
-            if (GuiDropdownBox(comboBoxAl, sortingAlgorithmsString.c_str(), &chosenAlgorithm, algorithmEdit)) {
+            GuiLabel(labelAlgorithm, "Algorithm");
+            if (GuiDropdownBox(comboBoxAlg, algorithmsStringPtr, &chosenAlgorithm, algorithmEdit && !isAlgorithmActive())) {
                 algorithmEdit = !algorithmEdit;
+            }
+            GuiLabel(labelAlgorithmType, "Algorithm type");
+            if (GuiDropdownBox(comboBoxAlgType, algorithmTypeString.c_str(), &chosenAlgorithmType, algorithmTypeEdit && !isAlgorithmActive())) {
+                algorithmTypeEdit = !algorithmTypeEdit;
+                if (!algorithmTypeEdit) {
+                    switch (chosenAlgorithmType)
+                    {
+                    case static_cast<int>(AlgorithmType::Sort):
+                        algorithmsStringPtr = sortingAlgorithmsString.c_str();
+                        break;
+
+                    case static_cast<int>(AlgorithmType::Shuffle):
+                        algorithmsStringPtr = shuffleAlgorithmsString.c_str();
+                        break;
+                    }
+                    chosenAlgorithm = 0;
+                }
             }
             settingsGroupBox.height = increaseY();
             GuiSetStyle(DEFAULT, TEXT_SIZE, 24);
@@ -77,14 +125,14 @@ private:
         GuiButton(button, "Start");
     }
 
-    bool isGuiEditMode() {
-        // return algorithmEdit || sizeEdit;
-        return GuiGetState() == STATE_FOCUSED;
+    bool isGuiEditMode() const {
+        return algorithmEdit || sizeEdit;
     }
 
     void init() {
         sortingAlgorithms.push_back(Algorithm{ quickSort, "Quick sort" });
         sortingAlgorithms.push_back(Algorithm{ insertionSort, "Insertion sort" });
+        shuffleAlgorithms.push_back(Algorithm{ standartShuffle, "Standart shuffle" });
     }
 
     void initGui() {
@@ -94,10 +142,20 @@ private:
         if (sortingAlgorithmsString.length() > 0) {
             sortingAlgorithmsString.pop_back();
         }
+
+        for (const auto& alg : shuffleAlgorithms) {
+            shuffleAlgorithmsString += alg.name + ";";
+        }
+        if (shuffleAlgorithmsString.length() > 0) {
+            shuffleAlgorithmsString.pop_back();
+        }
+
+        algorithmTypeString = "Sort;Shuffle";
+        algorithmsStringPtr = sortingAlgorithmsString.c_str();
     }
 
 public:
-    MainScreen() {
+    MainScreen() : displayArray{ size } {
         init();
         initGui();
     }
@@ -106,6 +164,7 @@ public:
         if (isGuiEditMode()) {
             return;
         }
+        auto currentState = displayArray.getState();
 
         if (IsKeyPressed(KEY_F)) {
             fullscreenMode = !fullscreenMode;
@@ -116,37 +175,49 @@ public:
         }
 
         if (IsKeyPressed(KEY_LEFT)) {
-            if (currentState == State::Paused) {
-                displayArray.prevOperation();
-            }
+            displayArray.prevOperation();
         }
         else if (IsKeyPressed(KEY_RIGHT)) {
-            if (currentState == State::Paused) {
-                displayArray.nextOperation();
-            }
+            displayArray.nextOperation();
         }
         else if (IsKeyPressed(KEY_SPACE)) {
-            if (currentState == State::Running) {
+            switch (displayArray.getState())
+            {
+            case VisualArray::State::Running:
                 displayArray.pause();
-            }
-            else if (currentState == State::Paused) {
+                break;
+
+            case VisualArray::State::Idle:
+                switch (chosenAlgorithmType)
+                {
+                case static_cast<int>(AlgorithmType::Sort):
+                    displayArray.start(sortingAlgorithms[chosenAlgorithm]);
+                    break;
+
+                case static_cast<int>(AlgorithmType::Shuffle):
+                    displayArray.start(shuffleAlgorithms[chosenAlgorithm]);
+                    break;
+                }
+                break;
+
+            case VisualArray::State::Paused:
                 displayArray.cont();
-            }
-            else if (currentState == State::Idle) {
-                displayArray.start();
+                break;
+
+            default:
+                break;
             }
         }
         else if (IsKeyPressed(KEY_BACKSPACE)) {
-            if (currentState == State::Running || currentState == State::Paused) {
-                displayArray.stop();
-            }
+            displayArray.stop();
         }
     }
 
     void update() {
-        if (currentState == State::Paused || currentState == State::Idle) {
-            return;
+        if ((size > 1) && (size <= maxSize) && (size != displayArray.size())) {
+            displayArray.resize(size);
         }
+        displayArray.update();
     }
 
     void draw() {

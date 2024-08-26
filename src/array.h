@@ -8,13 +8,14 @@
 class Array {
 public:
     //Parameters: index, value
-    using GetCallback = void(*)(int, int);
+    using GetCallback = std::function<void(int, int)>;
     //Parameters: index, oldValue, newValue 
-    using SetCallback = void(*)(int, int, int);
+    using SetCallback = std::function<void(int, int, int)>;
     //Parameters: index1, index2 
-    using SwapCallback = void(*)(int, int);
+    using SwapCallback = std::function<void(int, int)>;
 
     bool callback = true;
+    bool swapIsSingleOperation = true;
 
 private:
     GetCallback getCallback;
@@ -33,6 +34,10 @@ public:
 
     int size() const {
         return data.size();
+    }
+
+    void resize(size_t size) {
+        data.resize(size);
     }
 
     int at(size_t index) const {
@@ -58,7 +63,15 @@ public:
         checkIndex(index2);
         std::swap(data[index1], data[index2]);
         if (callback && swapCallback) {
-            swapCallback(index1, index2);
+            if (swapIsSingleOperation) {
+                swapCallback(index1, index2);
+            }
+            else {
+                getCallback(index1, data[index2]);
+                getCallback(index2, data[index1]);
+                setCallback(index1, data[index1], data[index2]);
+                setCallback(index2, data[index2], data[index1]);
+            }
         }
     }
 
