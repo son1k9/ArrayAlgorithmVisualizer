@@ -166,6 +166,12 @@ private:
     void init() {
         sortingAlgorithms.push_back(Algorithm{ quickSort, "Quick sort" });
         sortingAlgorithms.push_back(Algorithm{ insertionSort, "Insertion sort" });
+        sortingAlgorithms.push_back(Algorithm{ heapSort, "Heap sort" });
+        sortingAlgorithms.push_back(Algorithm{ selectionSort, "Selection sort" });
+        sortingAlgorithms.push_back(Algorithm{ doubleSelectionSort, "Double selection sort" });
+        sortingAlgorithms.push_back(Algorithm{ bubbleSort, "Bubble sort" });
+        sortingAlgorithms.push_back(Algorithm{ shakerSort, "Shaker sort" });
+
         shuffleAlgorithms.push_back(Algorithm{ standartShuffle, "Standart shuffle" });
     }
 

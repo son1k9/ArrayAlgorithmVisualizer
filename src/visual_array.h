@@ -49,16 +49,16 @@ private:
         operations.push_back(createSwapOperation(index1, index2));
     }
 
-    void processOperation(const Operation& operation) {
+    void processOperation(const Operation& operation, bool prev = false) {
         currentReadIndex = -1;
         switch (operation.type)
         {
         case OperationType::Read:
-            processRead(operation);
+            processRead(operation, prev);
             break;
 
         case OperationType::Write:
-            processWrite(operation);
+            processWrite(operation, prev);
             break;
 
         case OperationType::Swap:
@@ -79,7 +79,7 @@ private:
                 return false;
             }
             currentReadIndex = -1;
-            processRead(operation);
+            processRead(operation, false);
             break;
 
         case OperationType::Write:
@@ -87,7 +87,7 @@ private:
                 return false;
             }
             currentReadIndex = -1;
-            processWrite(operation);
+            processWrite(operation, false);
             break;
 
         case OperationType::Swap:
@@ -107,11 +107,14 @@ private:
         return true;
     }
 
-    void processRead(const Operation& operation) {
+    void processRead(const Operation& operation, bool prev) {
+        if (prev) {
+            return;
+        }
         currentReadIndex = operation.index;
     }
 
-    void processWrite(const Operation& operation, bool prev = false) {
+    void processWrite(const Operation& operation, bool prev) {
         displayArray[operation.index] = prev ? operation.data->value1 : operation.data->value2;
     }
 
@@ -189,8 +192,16 @@ public:
         if (state != State::Paused) {
             return false;
         }
-        if (nextOperationIndex > 1) {
-            processOperation(operations[--nextOperationIndex - 1]);
+        if (nextOperationIndex < operations.size()) {
+            if (nextOperationIndex > 1) {
+                processOperation(operations[--nextOperationIndex], true);
+                if (nextOperationIndex > 1) {
+                    const auto& op = operations[nextOperationIndex - 1];
+                    if (op.type == OperationType::Read) {
+                        processRead(op, false);
+                    }
+                }
+            }
         }
         return true;
     }
