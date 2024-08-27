@@ -37,14 +37,15 @@ private:
     bool writeDelayEdit = false;
     bool swapDelayEdit = false;
     bool fullscreenMode = false;
+    bool drawHelp = true;
     const char* algorithmsStringPtr{};
+    bool swapIsSingleOperation = true;
 
     bool isAlgorithmActive() {
         return displayArray.getState() == VisualArray::State::Running || displayArray.getState() == VisualArray::State::Paused;
     }
 
-    void drawGui(const Rectangle& rect) {
-        const Rectangle leftPanel{ rect.x, rect.y, rect.width, rect.height };
+    void drawGuiLeftPanel(const Rectangle& leftPanel) {
         DrawRectangleRec(leftPanel, GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
 
         constexpr int margin = 10;
@@ -72,9 +73,13 @@ private:
             const Rectangle spinnerWriteDelay{ controlX, increaseY(),  controlWidth, controlHeight };
             const Rectangle labelSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle spinnerSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
+            const Rectangle checkboxSwap{ controlX, increaseY(), controlHeight, controlHeight };
             GuiSetStyle(DEFAULT, TEXT_SIZE, 22);
-            if (algorithmEdit || algorithmTypeEdit || isAlgorithmActive()) {
+            if (algorithmEdit || algorithmTypeEdit) {
                 GuiLock();
+            }
+            if (displayArray.getState() == VisualArray::State::Running) {
+                GuiDisable();
             }
             GuiLabel(labelSwapDelay, "Swap delay");
             if (GuiSpinner(spinnerSwapDelay, NULL, &swapOperationDelay, 0, 10, swapDelayEdit)) {
@@ -88,6 +93,10 @@ private:
             if (GuiSpinner(spinnerReadDelay, NULL, &readOperationDelay, 0, 10, readDelayEdit)) {
                 readDelayEdit = !readDelayEdit;
             }
+            if (isAlgorithmActive()) {
+                GuiDisable();
+            }
+            GuiCheckBox(checkboxSwap, "Swap is single op", &swapIsSingleOperation);
             GuiLabel(labelSize, "Array size");
             if (GuiSpinner(spinnerSize, NULL, &size, 2, maxSize, sizeEdit && !isAlgorithmActive())) {
                 sizeEdit = !sizeEdit;
@@ -117,12 +126,37 @@ private:
             GuiSetStyle(DEFAULT, TEXT_SIZE, 24);
             GuiGroupBox(settingsGroupBox, "Settings");
             GuiUnlock();
+            GuiEnable();
             };
 
         drawSettings();
         constexpr int startButtonHeight = 50;
         Rectangle button{ margin, leftPanel.height - margin - startButtonHeight, leftPanel.width - 2 * margin, startButtonHeight };
-        GuiButton(button, "Start");
+        switch (displayArray.getState())
+        {
+        case VisualArray::State::Idle:
+            if (GuiButton(button, "Start")) {
+                start();
+            }
+            break;
+
+        case VisualArray::State::Running:
+            if (GuiButton(button, "Pause")) {
+                displayArray.pause();
+            }
+            break;
+
+        case VisualArray::State::Paused:
+            if (GuiButton(button, "Continue")) {
+                displayArray.cont();
+            }
+            break;
+        }
+    }
+
+    void drawGuiHelp(const Rectangle& rect) {
+
+        DrawRectangleRec(rect, GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
     }
 
     bool isGuiEditMode() const {
@@ -154,10 +188,15 @@ private:
         algorithmsStringPtr = sortingAlgorithmsString.c_str();
     }
 
-public:
-    MainScreen() : displayArray{ size } {
-        init();
-        initGui();
+    bool start() {
+        switch (chosenAlgorithmType)
+        {
+        case static_cast<int>(AlgorithmType::Sort):
+            return displayArray.start(sortingAlgorithms[chosenAlgorithm]);
+
+        case static_cast<int>(AlgorithmType::Shuffle):
+            return displayArray.start(shuffleAlgorithms[chosenAlgorithm]);
+        }
     }
 
     void processInput() {
@@ -168,6 +207,10 @@ public:
 
         if (IsKeyPressed(KEY_F)) {
             fullscreenMode = !fullscreenMode;
+        }
+
+        if (IsKeyPressed(KEY_F1)) {
+            drawHelp = !drawHelp;
         }
 
         if (IsKeyPressed(KEY_F11)) {
@@ -188,16 +231,7 @@ public:
                 break;
 
             case VisualArray::State::Idle:
-                switch (chosenAlgorithmType)
-                {
-                case static_cast<int>(AlgorithmType::Sort):
-                    displayArray.start(sortingAlgorithms[chosenAlgorithm]);
-                    break;
-
-                case static_cast<int>(AlgorithmType::Shuffle):
-                    displayArray.start(shuffleAlgorithms[chosenAlgorithm]);
-                    break;
-                }
+                start();
                 break;
 
             case VisualArray::State::Paused:
@@ -212,10 +246,27 @@ public:
             displayArray.stop();
         }
     }
+public:
+    MainScreen() : displayArray{ size } {
+        init();
+        initGui();
+    }
 
     void update() {
+        processInput();
         if ((size > 1) && (size <= maxSize) && (size != displayArray.size())) {
             displayArray.resize(size);
+        }
+        auto setOperationDelay = [](int operationDelay, float& set) {
+            if ((operationDelay >= 0) && (operationDelay <= 10) && (set != operationDelay / 100.0f)) {
+                set = operationDelay / 100.0f;
+            }
+            };
+        setOperationDelay(readOperationDelay, displayArray.readOperationDelay);
+        setOperationDelay(writeOperationDelay, displayArray.writeOperationDelay);
+        setOperationDelay(swapOperationDelay, displayArray.swapOperationDelay);
+        if (swapIsSingleOperation != displayArray.swapIsSingleOperation()) {
+            displayArray.swapIsSingleOpearion(swapIsSingleOperation);
         }
         displayArray.update();
     }
@@ -225,10 +276,15 @@ public:
         const int height = Rayutils::GetDisplayHeight();
         const int width = Rayutils::GetDisplayWidth();
         const Rectangle uiRect{ 0, 0, 250, height };
+        const Rectangle helpRect{ width - 250, 0, 250, height };
         Rectangle arrayRect{ 0, 0, width, height };
         if (!fullscreenMode) {
-            drawGui(uiRect);
+            drawGuiLeftPanel(uiRect);
             arrayRect = { uiRect.width, 0, width - uiRect.width, static_cast<float>(height) };
+            if (drawHelp) {
+                drawGuiHelp(helpRect);
+                arrayRect.width -= helpRect.width;
+            }
         }
         displayArray.draw(arrayRect);
     }

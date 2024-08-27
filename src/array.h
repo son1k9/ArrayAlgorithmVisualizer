@@ -69,8 +69,8 @@ public:
             else {
                 getCallback(index1, data[index2]);
                 getCallback(index2, data[index1]);
-                setCallback(index1, data[index1], data[index2]);
-                setCallback(index2, data[index2], data[index1]);
+                setCallback(index1, data[index2], data[index1]);
+                setCallback(index2, data[index1], data[index2]);
             }
         }
     }

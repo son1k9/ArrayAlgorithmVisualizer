@@ -127,6 +127,24 @@ private:
         std::cout << std::format("State changed from {} to {}\n", stateToString(from), stateToString(to));
     }
 public:
+    VisualArray(int size) : sortArray(size), displayArray(size) {
+        sortArray.setGetCallback([this](int index, int value) {
+            this->getCallback(index, value);
+            });
+        sortArray.setSetCallback([this](int index, int oldValue, int newValue) {
+            this->setCallback(index, oldValue, newValue);
+            });
+        sortArray.setSwapCallback([this](int index1, int index2) {
+            this->swapCallback(index1, index2);
+            });
+        fillArray(size);
+    }
+
+    VisualArray(const VisualArray&) = delete;
+    VisualArray(VisualArray&&) = delete;
+    VisualArray& operator=(const VisualArray&) = delete;
+    VisualArray& operator=(VisualArray&&) = delete;
+
     float swapOperationDelay = 0.1f;
     float readOperationDelay = 0.1f;
     float writeOperationDelay = 0.1f;
@@ -279,16 +297,4 @@ public:
         }
     }
 
-    VisualArray(int size) : sortArray(size), displayArray(size) {
-        sortArray.setGetCallback([this](int index, int value) {
-            this->getCallback(index, value);
-            });
-        sortArray.setSetCallback([this](int index, int oldValue, int newValue) {
-            this->setCallback(index, oldValue, newValue);
-            });
-        sortArray.setSwapCallback([this](int index1, int index2) {
-            this->swapCallback(index1, index2);
-            });
-        fillArray(size);
-    }
 };

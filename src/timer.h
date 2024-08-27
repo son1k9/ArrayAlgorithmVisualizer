@@ -7,9 +7,9 @@ private:
     float time{};
     bool active = false;
 public:
-    //If timer is running restarts it
     Timer() {}
 
+    //If timer is running restarts it
     void start() {
         time = 0;
         active = true;

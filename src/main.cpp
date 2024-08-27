@@ -16,7 +16,6 @@ int main() {
 
     MainScreen screen;
     while (!WindowShouldClose()) {
-        screen.processInput();
         screen.update();
 
         BeginDrawing();

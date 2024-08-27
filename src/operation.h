@@ -9,8 +9,8 @@ enum class OperationType {
 };
 
 struct Operation {
-    OperationType type{};
-    int index{};
+    const OperationType type{};
+    const int index{};
     struct Data {
         const int value1{};
         const int value2{};
@@ -19,7 +19,7 @@ struct Operation {
     //Read: nullptr
     //Write: value1 - oldValue, value2 - newValue
     //Swap: value1 - index2
-    std::unique_ptr<Data> data = nullptr;
+    std::unique_ptr<const Data> data = nullptr;
 };
 
 inline Operation createReadOperation(int index) {
