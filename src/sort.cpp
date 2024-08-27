@@ -1,7 +1,7 @@
-#include "array.h"
+#include "callback_array.h"
 #include "sort.h"
 
-static int partionMid(Array& array, int l, int r) {
+static int partionMid(CallbackArray& array, int l, int r) {
     int pivot = array.at(l + (r - l) / 2);
 
     int i = l, j = r;
@@ -24,7 +24,7 @@ static int partionMid(Array& array, int l, int r) {
     }
 }
 
-static void _quickSort(Array& array, int l, int r) {
+static void _quickSort(CallbackArray& array, int l, int r) {
     if (l >= r) {
         return;
     }
@@ -34,11 +34,11 @@ static void _quickSort(Array& array, int l, int r) {
     _quickSort(array, pivot + 1, r);
 }
 
-void quickSort(Array& array) {
+void quickSort(CallbackArray& array) {
     _quickSort(array, 0, array.size() - 1);
 }
 
-void insertionSort(Array& array) {
+void insertionSort(CallbackArray& array) {
     for (int i = 1; i < array.size(); i++) {
         int k = array.at(i);
         int j = i - 1;
@@ -50,15 +50,15 @@ void insertionSort(Array& array) {
     }
 }
 
-static int left(Array& array, int i) {
+static int left(CallbackArray& array, int i) {
     return i * 2 + 1;
 }
 
-static int right(Array& array, int i) {
+static int right(CallbackArray& array, int i) {
     return i * 2 + 2;
 }
 
-static void heapifyDown(Array& array, int i, int lenght) {
+static void heapifyDown(CallbackArray& array, int i, int lenght) {
     int curr = i;
     while (curr < lenght) {
         int l = left(array, curr);
@@ -80,20 +80,20 @@ static void heapifyDown(Array& array, int i, int lenght) {
     }
 }
 
-static void buildMaxHeap(Array& array) {
+static void buildMaxHeap(CallbackArray& array) {
     const int lenght = array.size();
     for (int i = array.size() / 2; i >= 0; i--) {
         heapifyDown(array, i, lenght);
     }
 }
 
-void extractMax(Array& array, int& lenght) {
+void extractMax(CallbackArray& array, int& lenght) {
     array.swap(0, lenght - 1);
     lenght--;
     heapifyDown(array, 0, lenght);
 }
 
-void heapSort(Array& array) {
+void heapSort(CallbackArray& array) {
     buildMaxHeap(array);
     int lenght = array.size();
     for (int i = 0; i < array.size(); i++) {
@@ -101,7 +101,7 @@ void heapSort(Array& array) {
     }
 }
 
-void selectionSort(Array& array) {
+void selectionSort(CallbackArray& array) {
     for (int i = 0; i < array.size() - 1; i++) {
         int min = i;
         for (int j = i + 1; j < array.size(); j++) {
@@ -115,7 +115,7 @@ void selectionSort(Array& array) {
     }
 }
 
-void doubleSelectionSort(Array& array) {
+void doubleSelectionSort(CallbackArray& array) {
     for (int i = 0; i < array.size() - 1 - i; i++) {
         const int j = array.size() - 1 - i;
         int min = i;
@@ -137,7 +137,7 @@ void doubleSelectionSort(Array& array) {
     }
 }
 
-void bubbleSort(Array& array) {
+void bubbleSort(CallbackArray& array) {
     for (int i = 0; i < array.size() - 1; i++) {
         bool swapped = false;
 
@@ -154,7 +154,7 @@ void bubbleSort(Array& array) {
     }
 }
 
-void shakerSort(Array& array) {
+void shakerSort(CallbackArray& array) {
     for (int i = 0; i < array.size() / 2; i++) {
         bool swapped = false;
 

@@ -5,7 +5,7 @@
 #include <format>
 #include <assert.h>
 
-class Array {
+class CallbackArray {
 public:
     //Parameters: index, value
     using GetCallback = std::function<void(int, int)>;
@@ -28,9 +28,9 @@ private:
     }
 
 public:
-    Array(int size) : data(size) {};
-    Array(const std::vector<int>& data) : data{ data } {};
-    Array(std::vector<int>&& data) : data{ std::move(data) } {};
+    CallbackArray(int size) : data(size) {};
+    CallbackArray(const std::vector<int>& data) : data{ data } {};
+    CallbackArray(std::vector<int>&& data) : data{ std::move(data) } {};
 
     int size() const {
         return data.size();

@@ -7,7 +7,7 @@
 #include <format>
 #include "raylib.h"
 #include "concurent_vector.h"
-#include "array.h"
+#include "callback_array.h"
 #include "operation.h"
 #include "timer.h"
 
@@ -21,10 +21,10 @@ public:
 
 private:
     ConcurentVector<Operation> operations;
-    int currentReadIndex = -1;
+    int _currentReadIndex = -1;
     int nextOperationIndex = 0;
     std::vector<int> displayArray;
-    Array sortArray;
+    CallbackArray sortArray;
     State state = State::Idle;
     Timer timer;
 
@@ -50,7 +50,7 @@ private:
     }
 
     void processOperation(const Operation& operation, bool prev = false) {
-        currentReadIndex = -1;
+        _currentReadIndex = -1;
         switch (operation.type)
         {
         case OperationType::Read:
@@ -78,7 +78,7 @@ private:
             if (timer.timePassed() < readOperationDelay) {
                 return false;
             }
-            currentReadIndex = -1;
+            _currentReadIndex = -1;
             processRead(operation, false);
             break;
 
@@ -86,7 +86,7 @@ private:
             if (timer.timePassed() < writeOperationDelay) {
                 return false;
             }
-            currentReadIndex = -1;
+            _currentReadIndex = -1;
             processWrite(operation, false);
             break;
 
@@ -94,12 +94,12 @@ private:
             if (timer.timePassed() < swapOperationDelay) {
                 return false;
             }
-            currentReadIndex = -1;
+            _currentReadIndex = -1;
             processSwap(operation);
             break;
 
         case OperationType::SortEnd:
-            currentReadIndex = -1;
+            _currentReadIndex = -1;
             processSortEnd(operation);
             break;
         }
@@ -111,7 +111,7 @@ private:
         if (prev) {
             return;
         }
-        currentReadIndex = operation.index;
+        _currentReadIndex = operation.index;
     }
 
     void processWrite(const Operation& operation, bool prev) {
@@ -147,6 +147,14 @@ public:
     VisualArray(VisualArray&&) = delete;
     VisualArray& operator=(const VisualArray&) = delete;
     VisualArray& operator=(VisualArray&&) = delete;
+
+    int operator[](size_t index) {
+        return displayArray[index];
+    }
+
+    int currentReadIndex(){
+        return _currentReadIndex;
+    }
 
     float swapOperationDelay = 0.1f;
     float readOperationDelay = 0.1f;
@@ -221,7 +229,7 @@ public:
             return false;
         }
         operations.clear();
-        currentReadIndex = -1;
+        _currentReadIndex = -1;
         nextOperationIndex = 0;
         timer.start();
         const State oldState = state;
@@ -281,31 +289,4 @@ public:
             }
         }
     }
-
-    void draw(const Rectangle& rect) const {
-        const int padding = 20;
-        const int elementWidth = (rect.width - padding * 2) / displayArray.size();
-        const float elementWidthError = (rect.width - padding * 2) / displayArray.size() - elementWidth;
-        const int xOffset = elementWidthError * displayArray.size() / 2;
-        const int elementHeightDiff = (rect.height - padding * 2) / displayArray.size();
-        const float elementHeightDiffError = (rect.height - padding * 2) / displayArray.size() - elementHeightDiff;
-        const int yOffset = elementHeightDiffError * displayArray.size() / 2;
-        int i = 0;
-        const int arraySize = displayArray.size();
-        const float colorStep = 360.f / (displayArray.size() - 1);
-        for (int val : displayArray) {
-            Color col = ColorFromHSV(colorStep * (val - 1), 1.0f, 1.0f);
-            if (currentReadIndex == i) {
-                col = WHITE;
-            }
-            const int width = elementWidth;
-            const int height = elementHeightDiff * val;
-            const int x = rect.x + padding + elementWidth * i + xOffset;
-            const int y = rect.y + rect.height - padding - height - yOffset;
-            Rectangle elementRect{ x, y, width, height };
-            DrawRectangleRec(elementRect, col);
-            i++;
-        }
-    }
-
 };

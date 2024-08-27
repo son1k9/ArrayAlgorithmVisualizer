@@ -1,6 +1,6 @@
 #pragma once
 #include <functional>
-#include "array.h"
+#include "callback_array.h"
 
 enum class AlgorithmType {
     Sort = 0,
@@ -9,7 +9,7 @@ enum class AlgorithmType {
 };
 
 struct Algorithm {
-    using AlgorithmFunction = void(*)(Array&);
+    using AlgorithmFunction = void(*)(CallbackArray&);
     const std::string name;
     const AlgorithmFunction func;
 
@@ -18,7 +18,7 @@ struct Algorithm {
     Algorithm(AlgorithmFunction func, std::string&& name)
         : name{ name }, func{ func } {}
 
-    void use(Array& array) const {
+    void use(CallbackArray& array) const {
         func(array);
     }
 };

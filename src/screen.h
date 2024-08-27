@@ -155,8 +155,32 @@ private:
     }
 
     void drawGuiHelp(const Rectangle& rect) {
-
         DrawRectangleRec(rect, GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
+    }
+
+    void drawArray(const Rectangle& rect) {
+        const int padding = 20;
+        const int elementWidth = (rect.width - padding * 2) / displayArray.size();
+        const float elementWidthError = (rect.width - padding * 2) / displayArray.size() - elementWidth;
+        const int xOffset = elementWidthError * displayArray.size() / 2;
+        const int elementHeightDiff = (rect.height - padding * 2) / displayArray.size();
+        const float elementHeightDiffError = (rect.height - padding * 2) / displayArray.size() - elementHeightDiff;
+        const int yOffset = elementHeightDiffError * displayArray.size() / 2;
+        const int arraySize = displayArray.size();
+        const float colorStep = 360.f / (displayArray.size() - 1);
+        for (int i = 0; i < displayArray.size(); i++){
+            const int val = displayArray[i];
+            Color col = ColorFromHSV(colorStep * (val - 1), 1.0f, 1.0f);
+            if (displayArray.currentReadIndex() == i) {
+                col = WHITE;
+            }
+            const int width = elementWidth;
+            const int height = elementHeightDiff * val;
+            const int x = rect.x + padding + elementWidth * i + xOffset;
+            const int y = rect.y + rect.height - padding - height - yOffset;
+            Rectangle elementRect{ x, y, width, height };
+            DrawRectangleRec(elementRect, col);
+        }
     }
 
     bool isGuiEditMode() const {
@@ -292,6 +316,6 @@ public:
                 arrayRect.width -= helpRect.width;
             }
         }
-        displayArray.draw(arrayRect);
+        drawArray(arrayRect);
     }
 };

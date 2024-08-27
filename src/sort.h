@@ -1,10 +1,10 @@
 #pragma once
-#include "array.h"
+#include "callback_array.h"
 
-void quickSort(Array& array); 
-void heapSort(Array& array);
-void insertionSort(Array& array);
-void selectionSort(Array& array);
-void doubleSelectionSort(Array& array);
-void bubbleSort(Array& array);
-void shakerSort(Array& array);
+void quickSort(CallbackArray& array); 
+void heapSort(CallbackArray& array);
+void insertionSort(CallbackArray& array);
+void selectionSort(CallbackArray& array);
+void doubleSelectionSort(CallbackArray& array);
+void bubbleSort(CallbackArray& array);
+void shakerSort(CallbackArray& array);
