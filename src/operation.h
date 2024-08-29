@@ -5,6 +5,7 @@ enum class OperationType {
     Read,
     Write,
     Swap,
+    SortStart,
     SortEnd
 };
 
@@ -36,4 +37,8 @@ inline Operation createSwapOperation(int index1, int index2) {
 
 inline Operation createSortEndOperation() {
     return Operation{ OperationType::SortEnd };
+}
+
+inline Operation createSortStartOpearion() {
+    return Operation{ OperationType::SortStart };
 }

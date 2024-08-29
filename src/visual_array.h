@@ -6,7 +6,6 @@
 #include <thread>
 #include <format>
 #include "raylib.h"
-#include "concurent_vector.h"
 #include "callback_array.h"
 #include "operation.h"
 #include "timer.h"
@@ -20,9 +19,11 @@ public:
     };
 
 private:
-    ConcurentVector<Operation> operations;
+    using OperationsList = std::list<Operation>;
+    OperationsList operations;
+    OperationsList::iterator operationsIt;
+    int currOperationIndex = 0;
     int _currentReadIndex = -1;
-    int nextOperationIndex = 0;
     std::vector<int> displayArray;
     CallbackArray sortArray;
     State state = State::Idle;
@@ -125,10 +126,6 @@ private:
     void processSortEnd(const Operation& operation) {
         state = State::Idle;
     }
-
-    void changedStateDebug(State from, State to) {
-        std::cout << std::format("State changed from {} to {}\n", stateToString(from), stateToString(to));
-    }
 public:
     VisualArray(int size) : sortArray(size), displayArray(size) {
         sortArray.setGetCallback([this](int index, int value) {
@@ -148,11 +145,11 @@ public:
     VisualArray& operator=(const VisualArray&) = delete;
     VisualArray& operator=(VisualArray&&) = delete;
 
-    int operator[](size_t index) {
+    int operator[](size_t index) const {
         return displayArray[index];
     }
 
-    int currentReadIndex(){
+    int currentReadIndex() const {
         return _currentReadIndex;
     }
 
@@ -175,71 +172,63 @@ public:
         return displayArray.size();
     }
 
-    static std::string_view stateToString(VisualArray::State state) {
-        switch (state)
-        {
-        case VisualArray::State::Running:
-            return "Running";
-            break;
-        case VisualArray::State::Paused:
-            return "Paused";
-            break;
-        case VisualArray::State::Idle:
-            return "Idle";
-            break;
-        default:
-            break;
-        }
-    }
-
     State getState() const {
         return state;
     }
 
+    bool hasNextOperation() const {
+        return currOperationIndex + 1 < operations.size();
+    }
+
+    bool hasPrevOpeearion() const {
+        return currOperationIndex > 1;
+    }
+
     bool prevOperation() {
-        if (state != State::Paused) {
+        if (state != State::Paused && state != State::Idle) {
             return false;
         }
-        if (nextOperationIndex < operations.size()) {
-            if (nextOperationIndex > 1) {
-                processOperation(operations[--nextOperationIndex], true);
-                if (nextOperationIndex > 1) {
-                    const auto& op = operations[nextOperationIndex - 1];
-                    if (op.type == OperationType::Read) {
-                        processRead(op, false);
-                    }
-                }
+        if (!hasPrevOpeearion()) {
+            return false;
+        }
+        processOperation(*operationsIt--, true);
+        currOperationIndex--;
+        if (hasPrevOpeearion()) {
+            const auto& op = *operationsIt;
+            if (op.type == OperationType::Read) {
+                processRead(op, false);
             }
         }
         return true;
     }
 
     bool nextOperation() {
-        if (state != State::Paused) {
+        if (state != State::Paused && state != State::Idle) {
             return false;
         }
-        if (nextOperationIndex < operations.size()) {
-            processOperation(operations[nextOperationIndex++]);
+        if (!hasNextOperation()) {
+            return false;
         }
-        return true;
+        processOperation(*++operationsIt);
+        currOperationIndex++;
     }
 
     bool start(const Algorithm& algorithm) {
         if (state != State::Idle) {
             return false;
         }
-        operations.clear();
         _currentReadIndex = -1;
-        nextOperationIndex = 0;
+        operations.clear();
+        operations.push_back(createSortStartOpearion());
+        operationsIt = operations.begin();
+        currOperationIndex = 0;
         timer.start();
-        const State oldState = state;
         std::thread th([this](Algorithm algorithm) {
             algorithm.use(this->sortArray);
             this->operations.push_back(createSortEndOperation());
             }, algorithm);
         th.detach();
         state = State::Running;
-        changedStateDebug(oldState, state);
         return true;
     }
 
@@ -283,9 +272,12 @@ public:
             return;
         }
         timer.update();
-        if (nextOperationIndex < operations.size()) {
-            if (tryProcessOperation(operations[nextOperationIndex])) {
-                nextOperationIndex++;
+        if (hasNextOperation()) {
+            if (!tryProcessOperation(*++operationsIt)) {
+                operationsIt--;
+            }
+            else {
+                currOperationIndex++;
             }
         }
     }
