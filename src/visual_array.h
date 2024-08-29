@@ -3,6 +3,7 @@
 #include <string_view>
 #include <iostream>
 #include <functional>
+#include <memory>
 #include <thread>
 #include <format>
 #include "raylib.h"
@@ -20,34 +21,22 @@ public:
 
 private:
     using OperationsList = std::list<Operation>;
-    OperationsList operations;
+    std::shared_ptr<OperationsList> operations = std::make_shared<OperationsList>();
     OperationsList::iterator operationsIt;
+    std::shared_ptr<CallbackArray> sortArray;
     int currOperationIndex = 0;
     int _currentReadIndex = -1;
     std::vector<int> displayArray;
-    CallbackArray sortArray;
     State state = State::Idle;
     Timer timer;
 
     void fillArray(int size) {
-        sortArray.callback = false;
+        sortArray->callback = false;
         for (int i = 0; i < size; i++) {
-            sortArray.set(i, i + 1);
+            sortArray->set(i, i + 1);
             displayArray[i] = i + 1;
         }
-        sortArray.callback = true;
-    }
-
-    void getCallback(int index, int value) {
-        operations.push_back(createReadOperation(index));
-    }
-
-    void setCallback(int index, int oldValue, int newValue) {
-        operations.push_back(createWriteOperation(index, oldValue, newValue));
-    }
-
-    void swapCallback(int index1, int index2) {
-        operations.push_back(createSwapOperation(index1, index2));
+        sortArray->callback = true;
     }
 
     void processOperation(const Operation& operation, bool prev = false) {
@@ -126,18 +115,22 @@ private:
     void processSortEnd(const Operation& operation) {
         state = State::Idle;
     }
+
+    void setCallbacks() {
+        sortArray->setGetCallback([operations = operations](int index, int value) {
+            operations->push_back(createReadOperation(index));
+            });
+        sortArray->setSetCallback([operations = operations](int index, int oldValue, int newValue) {
+            operations->push_back(createWriteOperation(index, oldValue, newValue));
+            });
+        sortArray->setSwapCallback([operations = operations](int index1, int index2) {
+            operations->push_back(createSwapOperation(index1, index2));
+            });
+    }
 public:
-    VisualArray(int size) : sortArray(size), displayArray(size) {
-        sortArray.setGetCallback([this](int index, int value) {
-            this->getCallback(index, value);
-            });
-        sortArray.setSetCallback([this](int index, int oldValue, int newValue) {
-            this->setCallback(index, oldValue, newValue);
-            });
-        sortArray.setSwapCallback([this](int index1, int index2) {
-            this->swapCallback(index1, index2);
-            });
+    VisualArray(int size) : sortArray(std::make_shared<CallbackArray>(size)), displayArray(size) {
         fillArray(size);
+        setCallbacks();
     }
 
     VisualArray(const VisualArray&) = delete;
@@ -161,11 +154,11 @@ public:
         if (state != State::Idle) {
             return;
         }
-        sortArray.swapIsSingleOperation = value;
+        sortArray->swapIsSingleOperation = value;
     }
 
     bool swapIsSingleOperation() const {
-        return sortArray.swapIsSingleOperation;
+        return sortArray->swapIsSingleOperation;
     }
 
     size_t size() const {
@@ -177,10 +170,10 @@ public:
     }
 
     bool hasNextOperation() const {
-        return currOperationIndex + 1 < operations.size();
+        return currOperationIndex + 1 < operations->size();
     }
 
-    bool hasPrevOpeearion() const {
+    bool hasPrevOperation() const {
         return currOperationIndex > 1;
     }
 
@@ -188,12 +181,12 @@ public:
         if (state != State::Paused && state != State::Idle) {
             return false;
         }
-        if (!hasPrevOpeearion()) {
+        if (!hasPrevOperation()) {
             return false;
         }
         processOperation(*operationsIt--, true);
         currOperationIndex--;
-        if (hasPrevOpeearion()) {
+        if (hasPrevOperation()) {
             const auto& op = *operationsIt;
             if (op.type == OperationType::Read) {
                 processRead(op, false);
@@ -218,15 +211,15 @@ public:
             return false;
         }
         _currentReadIndex = -1;
-        operations.clear();
-        operations.push_back(createSortStartOpearion());
-        operationsIt = operations.begin();
+        operations->clear();
+        operations->push_back(createSortStartOpearion());
+        operationsIt = operations->begin();
         currOperationIndex = 0;
         timer.start();
-        std::thread th([this](Algorithm algorithm) {
-            algorithm.use(this->sortArray);
-            this->operations.push_back(createSortEndOperation());
-            }, algorithm);
+        std::thread th([](std::shared_ptr<OperationsList> operations, std::shared_ptr<CallbackArray> array, Algorithm algorithm) {
+            algorithm.use(*array);
+            operations->push_back(createSortEndOperation());
+            }, operations, sortArray, algorithm);
         th.detach();
         state = State::Running;
         return true;
@@ -245,7 +238,11 @@ public:
             return false;
         }
         state = State::Idle;
-        //Kill sorting thread (how?)
+        operations = std::make_shared<OperationsList>();
+        currOperationIndex = 0;
+        sortArray = std::make_shared<CallbackArray>(size());
+        setCallbacks();
+        fillArray(size());
         return true;
     }
 
@@ -262,7 +259,7 @@ public:
             return false;
         }
         displayArray.resize(size);
-        sortArray.resize(size);
+        sortArray->resize(size);
         fillArray(size);
         return true;
     }
