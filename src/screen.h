@@ -15,6 +15,14 @@ inline constexpr int maxSize = 1024;
 
 class MainScreen {
 private:
+    enum class State {
+        Idle,
+        Running,
+        Paused
+    };
+
+    State state = State::Idle;
+
     int size = 10;
     int swapOperationDelay = 1;
     int readOperationDelay = 1;
@@ -25,6 +33,7 @@ private:
     std::vector<Algorithm> shuffleAlgorithms;
     std::string shuffleAlgorithmsString;
     VisualArray displayArray;
+    Timer timer;
 
     int chosenAlgorithm = 0;
     bool algorithmEdit = false;
@@ -40,8 +49,10 @@ private:
     const char* algorithmsStringPtr{};
     bool swapIsSingleOperation = true;
 
+    bool needToStop = false;
+
     bool isAlgorithmActive() {
-        return displayArray.getState() == VisualArray::State::Running || displayArray.getState() == VisualArray::State::Paused;
+        return state == State::Running || state == State::Paused;
     }
 
     void drawGuiLeftPanel(const Rectangle& leftPanel) {
@@ -77,7 +88,7 @@ private:
             if (algorithmEdit || algorithmTypeEdit) {
                 GuiLock();
             }
-            if (displayArray.getState() == VisualArray::State::Running) {
+            if (state == State::Running) {
                 GuiDisable();
             }
             GuiLabel(labelSwapDelay, "Swap delay");
@@ -130,24 +141,32 @@ private:
 
         drawSettings();
         constexpr int startButtonHeight = 50;
+        Rectangle stopButton{ margin, leftPanel.height - 2 * margin - 2 * startButtonHeight, leftPanel.width - 2 * margin, startButtonHeight };
+        if (state == State::Idle) {
+            GuiDisable();
+        }
+        if (GuiButton(stopButton, "Stop")) {
+            stop();
+        }
+        GuiEnable();
         Rectangle button{ margin, leftPanel.height - margin - startButtonHeight, leftPanel.width - 2 * margin, startButtonHeight };
-        switch (displayArray.getState())
+        switch (state)
         {
-        case VisualArray::State::Idle:
+        case State::Idle:
             if (GuiButton(button, "Start")) {
                 start();
             }
             break;
 
-        case VisualArray::State::Running:
+        case State::Running:
             if (GuiButton(button, "Pause")) {
-                displayArray.pause();
+                pause();
             }
             break;
 
-        case VisualArray::State::Paused:
+        case State::Paused:
             if (GuiButton(button, "Continue")) {
-                displayArray.cont();
+                cont();
             }
             break;
         }
@@ -167,10 +186,10 @@ private:
         const int yOffset = elementHeightDiffError * displayArray.size() / 2;
         const int arraySize = displayArray.size();
         const float colorStep = 360.f / (displayArray.size() - 1);
-        for (int i = 0; i < displayArray.size(); i++){
+        for (int i = 0; i < displayArray.size(); i++) {
             const int val = displayArray[i];
             Color col = ColorFromHSV(colorStep * (val - 1), 1.0f, 1.0f);
-            if (displayArray.currentReadIndex() == i) {
+            if (state != State::Idle && displayArray.currentReadIndex() == i) {
                 col = WHITE;
             }
             const int width = elementWidth;
@@ -183,7 +202,7 @@ private:
     }
 
     bool isGuiEditMode() const {
-        return algorithmEdit || sizeEdit;
+        return algorithmEdit || sizeEdit || readDelayEdit || writeDelayEdit || swapDelayEdit;
     }
 
     void init() {
@@ -218,6 +237,9 @@ private:
     }
 
     bool start() {
+        needToStop = false;
+        state = State::Running;
+        timer.start();
         switch (chosenAlgorithmType)
         {
         case static_cast<int>(AlgorithmType::Sort):
@@ -228,11 +250,23 @@ private:
         }
     }
 
+    void pause() {
+        state = State::Paused;
+    }
+
+    void cont() {
+        state = State::Running;
+    }
+
+    void stop() {
+        needToStop = true;
+        displayArray.stop();
+    }
+
     void processInput() {
         if (isGuiEditMode()) {
             return;
         }
-        auto currentState = displayArray.getState();
 
         if (IsKeyPressed(KEY_F)) {
             fullscreenMode = !fullscreenMode;
@@ -247,32 +281,33 @@ private:
         }
 
         if (IsKeyPressed(KEY_LEFT)) {
-            displayArray.prevOperation();
+            if (state == State::Paused) {
+                displayArray.prevOperation();
+            }
         }
         else if (IsKeyPressed(KEY_RIGHT)) {
-            displayArray.nextOperation();
+            if (state == State::Paused) {
+                displayArray.nextOperation();
+            }
         }
         else if (IsKeyPressed(KEY_SPACE)) {
-            switch (displayArray.getState())
+            switch (state)
             {
-            case VisualArray::State::Running:
-                displayArray.pause();
+            case State::Running:
+                pause();
                 break;
 
-            case VisualArray::State::Idle:
+            case State::Idle:
                 start();
                 break;
 
-            case VisualArray::State::Paused:
-                displayArray.cont();
-                break;
-
-            default:
+            case State::Paused:
+                cont();
                 break;
             }
         }
         else if (IsKeyPressed(KEY_BACKSPACE)) {
-            displayArray.stop();
+            stop();
         }
     }
 public:
@@ -283,21 +318,52 @@ public:
 
     void update() {
         processInput();
-        if ((size > 1) && (size <= maxSize) && (size != displayArray.size())) {
+        if (swapIsSingleOperation != displayArray.swapIsSingleOperation()) {
+            displayArray.swapIsSingleOperation(swapIsSingleOperation);
+        }
+
+        if ((state == State::Idle) && (size > 1) && (size <= maxSize) && (size != displayArray.size())) {
             displayArray.resize(size);
         }
-        auto setOperationDelay = [](int operationDelay, float& set) {
-            if ((operationDelay >= 0) && (operationDelay <= 10) && (set != operationDelay / 100.0f)) {
-                set = operationDelay / 100.0f;
+
+        if (needToStop) {
+            if (!displayArray.running()) {
+                state = State::Idle;
+                displayArray.sync();
             }
-            };
-        setOperationDelay(readOperationDelay, displayArray.readOperationDelay);
-        setOperationDelay(writeOperationDelay, displayArray.writeOperationDelay);
-        setOperationDelay(swapOperationDelay, displayArray.swapOperationDelay);
-        if (swapIsSingleOperation != displayArray.swapIsSingleOperation()) {
-            displayArray.swapIsSingleOpearion(swapIsSingleOperation);
         }
-        displayArray.update();
+
+        timer.update();
+        if (state == State::Running) {
+            auto operation = displayArray.peek();
+            if (operation) {
+                float operationDelay{};
+                switch (operation->type)
+                {
+                case OperationType::Read:
+                    operationDelay = readOperationDelay / 100.0f;
+                    break;
+
+                case OperationType::Write:
+                    operationDelay = writeOperationDelay / 100.0f;
+                    break;
+
+                case OperationType::Swap:
+                    operationDelay = swapOperationDelay / 100.0f;
+                    break;
+
+                default:
+                    break;
+                }
+                if (timer.timePassed() > operationDelay) {
+                    timer.start();
+                    displayArray.nextOperation();
+                }
+            }
+            else if (!displayArray.running()) {
+                pause();
+            }
+        }
     }
 
     void draw() {

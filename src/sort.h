@@ -1,10 +1,11 @@
 #pragma once
+#include <atomic>
 #include "callback_array.h"
 
-void quickSort(CallbackArray& array); 
-void heapSort(CallbackArray& array);
-void insertionSort(CallbackArray& array);
-void selectionSort(CallbackArray& array);
-void doubleSelectionSort(CallbackArray& array);
-void bubbleSort(CallbackArray& array);
-void shakerSort(CallbackArray& array);
+void quickSort(CallbackArray& array, std::atomic<bool>& stop);
+void heapSort(CallbackArray& array, std::atomic<bool>& stop);
+void insertionSort(CallbackArray& array, std::atomic<bool>& stop);
+void selectionSort(CallbackArray& array, std::atomic<bool>& stop);
+void doubleSelectionSort(CallbackArray& array, std::atomic<bool>& stop);
+void bubbleSort(CallbackArray& array, std::atomic<bool>& stop);
+void shakerSort(CallbackArray& array, std::atomic<bool>& stop);

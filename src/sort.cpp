@@ -1,3 +1,4 @@
+#include <atomic>
 #include "callback_array.h"
 #include "sort.h"
 
@@ -24,22 +25,29 @@ static int partionMid(CallbackArray& array, int l, int r) {
     }
 }
 
-static void _quickSort(CallbackArray& array, int l, int r) {
+static void _quickSort(CallbackArray& array, int l, int r, std::atomic<bool>& stop) {
+    if (stop) {
+        return;
+    }
+
     if (l >= r) {
         return;
     }
 
     const int pivot = partionMid(array, l, r);
-    _quickSort(array, l, pivot);
-    _quickSort(array, pivot + 1, r);
+    _quickSort(array, l, pivot, stop);
+    _quickSort(array, pivot + 1, r, stop);
 }
 
-void quickSort(CallbackArray& array) {
-    _quickSort(array, 0, array.size() - 1);
+void quickSort(CallbackArray& array, std::atomic<bool>& stop) {
+    _quickSort(array, 0, array.size() - 1, stop);
 }
 
-void insertionSort(CallbackArray& array) {
+void insertionSort(CallbackArray& array, std::atomic<bool>& stop) {
     for (int i = 1; i < array.size(); i++) {
+        if (stop) {
+            return;
+        }
         int k = array.at(i);
         int j = i - 1;
         while (j >= 0 && k < array.at(j)) {
@@ -80,9 +88,12 @@ static void heapifyDown(CallbackArray& array, int i, int lenght) {
     }
 }
 
-static void buildMaxHeap(CallbackArray& array) {
+static void buildMaxHeap(CallbackArray& array, std::atomic<bool>& stop) {
     const int lenght = array.size();
     for (int i = array.size() / 2; i >= 0; i--) {
+        if (stop) {
+            return;
+        }
         heapifyDown(array, i, lenght);
     }
 }
@@ -93,16 +104,20 @@ void extractMax(CallbackArray& array, int& lenght) {
     heapifyDown(array, 0, lenght);
 }
 
-void heapSort(CallbackArray& array) {
-    buildMaxHeap(array);
+void heapSort(CallbackArray& array, std::atomic<bool>& stop) {
+    buildMaxHeap(array, stop);
     int lenght = array.size();
     for (int i = 0; i < array.size(); i++) {
         extractMax(array, lenght);
     }
 }
 
-void selectionSort(CallbackArray& array) {
+void selectionSort(CallbackArray& array, std::atomic<bool>& stop) {
     for (int i = 0; i < array.size() - 1; i++) {
+        if (stop) {
+            return;
+        }
+
         int min = i;
         for (int j = i + 1; j < array.size(); j++) {
             if (array.at(j) < array.at(i)) {
@@ -115,8 +130,11 @@ void selectionSort(CallbackArray& array) {
     }
 }
 
-void doubleSelectionSort(CallbackArray& array) {
+void doubleSelectionSort(CallbackArray& array, std::atomic<bool>& stop) {
     for (int i = 0; i < array.size() - 1 - i; i++) {
+        if (stop) {
+            return;
+        }
         const int j = array.size() - 1 - i;
         int min = i;
         int max = j;
@@ -137,8 +155,11 @@ void doubleSelectionSort(CallbackArray& array) {
     }
 }
 
-void bubbleSort(CallbackArray& array) {
+void bubbleSort(CallbackArray& array, std::atomic<bool>& stop) {
     for (int i = 0; i < array.size() - 1; i++) {
+        if (stop) {
+            return;
+        }
         bool swapped = false;
 
         for (int j = 0; j < array.size() - i - 1; j++) {
@@ -154,8 +175,11 @@ void bubbleSort(CallbackArray& array) {
     }
 }
 
-void shakerSort(CallbackArray& array) {
+void shakerSort(CallbackArray& array, std::atomic<bool>& stop) {
     for (int i = 0; i < array.size() / 2; i++) {
+        if (stop) {
+            return;
+        }
         bool swapped = false;
 
         for (int j = i; j < array.size() - i - 1; j++) {

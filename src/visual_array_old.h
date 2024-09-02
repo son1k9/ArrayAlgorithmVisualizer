@@ -1,5 +1,4 @@
 #pragma once
-#include <atomic>
 #include <vector>
 #include <string_view>
 #include <iostream>
@@ -12,6 +11,13 @@
 #include "timer.h"
 
 class VisualArray {
+public:
+    enum class State {
+        Running,
+        Paused,
+        Idle
+    };
+
 private:
     using OperationsList = std::list<Operation>;
     OperationsList operations;
@@ -20,8 +26,9 @@ private:
     int _currentReadIndex = -1;
     std::vector<int> displayArray;
     CallbackArray sortArray;
-    std::atomic<bool> _stop = false;
-    std::atomic<bool> _running = false;
+    State state = State::Idle;
+    Timer timer;
+    bool _stop = false;
 
     void fillArray(int size) {
         sortArray.callback = false;
@@ -59,7 +66,47 @@ private:
         case OperationType::Swap:
             processSwap(operation);
             break;
+
+        case OperationType::SortEnd:
+            processSortEnd(operation);
+            break;
         }
+    }
+
+    bool tryProcessOperation(const Operation& operation) {
+        switch (operation.type)
+        {
+        case OperationType::Read:
+            if (timer.timePassed() < readOperationDelay) {
+                return false;
+            }
+            _currentReadIndex = -1;
+            processRead(operation, false);
+            break;
+
+        case OperationType::Write:
+            if (timer.timePassed() < writeOperationDelay) {
+                return false;
+            }
+            _currentReadIndex = -1;
+            processWrite(operation, false);
+            break;
+
+        case OperationType::Swap:
+            if (timer.timePassed() < swapOperationDelay) {
+                return false;
+            }
+            _currentReadIndex = -1;
+            processSwap(operation);
+            break;
+
+        case OperationType::SortEnd:
+            _currentReadIndex = -1;
+            processSortEnd(operation);
+            break;
+        }
+        timer.start();
+        return true;
     }
 
     void processRead(const Operation& operation, bool prev) {
@@ -77,6 +124,9 @@ private:
         std::swap(displayArray[operation.index], displayArray[operation.data->value1]);
     }
 
+    void processSortEnd(const Operation& operation) {
+        state = State::Idle;
+    }
 public:
     VisualArray(int size) : sortArray(size), displayArray(size) {
         sortArray.setGetCallback([this](int index, int value) {
@@ -96,25 +146,6 @@ public:
     VisualArray& operator=(const VisualArray&) = delete;
     VisualArray& operator=(VisualArray&&) = delete;
 
-    void sync() {
-        if (_running) {
-            return;
-        }
-        if (!hasNextOperation()) {
-            return;
-        }
-
-        sortArray.callback = false;
-        for (int i = 0; i < displayArray.size(); i++) {
-            sortArray.set(i, displayArray[i]);
-        }
-        sortArray.callback = true;
-    }
-
-    bool running() const {
-        return _running;
-    }
-
     int operator[](size_t index) const {
         return displayArray[index];
     }
@@ -123,7 +154,16 @@ public:
         return _currentReadIndex;
     }
 
+
+
+    float swapOperationDelay = 0.1f;
+    float readOperationDelay = 0.1f;
+    float writeOperationDelay = 0.1f;
+
     void swapIsSingleOperation(bool value) {
+        if (state != State::Idle) {
+            return;
+        }
         sortArray.swapIsSingleOperation = value;
     }
 
@@ -135,6 +175,10 @@ public:
         return displayArray.size();
     }
 
+    State getState() const {
+        return state;
+    }
+
     bool hasNextOperation() const {
         return currOperationIndex + 1 < operations.size();
     }
@@ -144,6 +188,9 @@ public:
     }
 
     bool prevOperation() {
+        if (state != State::Paused && state != State::Idle) {
+            return false;
+        }
         if (!hasPrevOpeearion()) {
             return false;
         }
@@ -158,16 +205,17 @@ public:
         return true;
     }
 
-    const Operation* peek() {
+    const Operation& peek() {
         if (!hasNextOperation()) {
-            return nullptr;
+            return;
         }
-        auto op = &*++operationsIt;
-        operationsIt--;
-        return op;
+        return *++operationsIt;
     }
 
     bool nextOperation() {
+        if (state != State::Paused && state != State::Idle) {
+            return false;
+        }
         if (!hasNextOperation()) {
             return false;
         }
@@ -176,41 +224,71 @@ public:
     }
 
     bool start(const Algorithm& algorithm) {
-        if (_running) {
+        if (state != State::Idle) {
             return false;
         }
-        _running = true;
         _stop = false;
         _currentReadIndex = -1;
         operations.clear();
         operations.push_back(createSortStartOpearion());
         operationsIt = operations.begin();
         currOperationIndex = 0;
+        timer.start();
         std::thread th([this](Algorithm algorithm) {
             algorithm.use(sortArray, _stop);
             operations.push_back(createSortEndOperation());
-            _running = false;
             }, algorithm);
         th.detach();
+        state = State::Running;
+        return true;
+    }
+
+    bool pause() {
+        if (state != State::Running) {
+            return false;
+        }
+        state = State::Paused;
         return true;
     }
 
     bool stop() {
-        if (!_running) {
+        if (state != State::Running && state != State::Paused) {
             return false;
         }
         _stop = true;
         return true;
     }
 
-    bool resize(int size) {
-        if (_running) {
+    bool cont() {
+        if (state != State::Paused) {
             return false;
         }
-        operations.clear();
+        state = State::Running;
+        return true;
+    }
+
+    bool resize(int size) {
+        if (state != State::Idle) {
+            return false;
+        }
         displayArray.resize(size);
         sortArray.resize(size);
         fillArray(size);
         return true;
+    }
+
+    void update() {
+        if (state != State::Running) {
+            return;
+        }
+        timer.update();
+        if (hasNextOperation()) {
+            if (!tryProcessOperation(*++operationsIt)) {
+                operationsIt--;
+            }
+            else {
+                currOperationIndex++;
+            }
+        }
     }
 };
