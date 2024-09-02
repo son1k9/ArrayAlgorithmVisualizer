@@ -213,6 +213,7 @@ private:
         sortingAlgorithms.push_back(Algorithm{ doubleSelectionSort, "Double selection sort" });
         sortingAlgorithms.push_back(Algorithm{ bubbleSort, "Bubble sort" });
         sortingAlgorithms.push_back(Algorithm{ shakerSort, "Shaker sort" });
+        sortingAlgorithms.push_back(Algorithm{ bogoSort, "Bogo sort" });
 
         shuffleAlgorithms.push_back(Algorithm{ standartShuffle, "Standart shuffle" });
     }

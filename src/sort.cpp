@@ -1,4 +1,5 @@
 #include <atomic>
+#include "shuffle.h"
 #include "callback_array.h"
 #include "sort.h"
 
@@ -201,5 +202,23 @@ void shakerSort(CallbackArray& array, std::atomic<bool>& stop) {
         if (!swapped) {
             break;
         }
+    }
+}
+
+static bool isSorted(const CallbackArray& array) {
+    for (int i = 0; i < array.size() - 1; i++) {
+        if (array.at(i) > array.at(i + 1)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void bogoSort(CallbackArray& array, std::atomic<bool>& stop) {
+    while (!isSorted(array)) {
+        if (stop) {
+            return;
+        }
+        standartShuffle(array, stop);
     }
 }

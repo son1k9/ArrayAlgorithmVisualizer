@@ -139,17 +139,17 @@ public:
         return currOperationIndex + 1 < operations.size();
     }
 
-    bool hasPrevOpeearion() const {
+    bool hasPrevOperation() const {
         return currOperationIndex > 1;
     }
 
     bool prevOperation() {
-        if (!hasPrevOpeearion()) {
+        if (!hasPrevOperation()) {
             return false;
         }
         processOperation(*operationsIt--, true);
         currOperationIndex--;
-        if (hasPrevOpeearion()) {
+        if (hasPrevOperation()) {
             const auto& op = *operationsIt;
             if (op.type == OperationType::Read) {
                 processRead(op, false);
@@ -183,9 +183,9 @@ public:
         _stop = false;
         _currentReadIndex = -1;
         operations.clear();
+        currOperationIndex = 0;
         operations.push_back(createSortStartOpearion());
         operationsIt = operations.begin();
-        currOperationIndex = 0;
         std::thread th([this](Algorithm algorithm) {
             algorithm.use(sortArray, _stop);
             operations.push_back(createSortEndOperation());
@@ -193,6 +193,13 @@ public:
             }, algorithm);
         th.detach();
         return true;
+    }
+
+    bool clear() {
+        if (_running) {
+            return false;
+        }
+        operations.clear();
     }
 
     bool stop() {
