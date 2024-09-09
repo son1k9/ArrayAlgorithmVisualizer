@@ -46,6 +46,7 @@ private:
     bool swapDelayEdit = false;
     bool fullscreenMode = false;
     bool drawHelp = true;
+    bool autoStop = true;
     const char* algorithmsStringPtr{};
     bool swapIsSingleOperation = true;
 
@@ -84,6 +85,7 @@ private:
             const Rectangle labelSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle spinnerSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle checkboxSwap{ controlX, increaseY(), controlHeight, controlHeight };
+            const Rectangle checkboxAutoStop{ controlX, increaseY(), controlHeight, controlHeight };
             GuiSetStyle(DEFAULT, TEXT_SIZE, 22);
             if (algorithmEdit || algorithmTypeEdit) {
                 GuiLock();
@@ -107,6 +109,7 @@ private:
                 GuiDisable();
             }
             GuiCheckBox(checkboxSwap, "Swap is single op", &swapIsSingleOperation);
+            GuiCheckBox(checkboxAutoStop, "Auto stop", &autoStop);
             GuiLabel(labelSize, "Array size");
             if (GuiSpinner(spinnerSize, NULL, &size, 2, maxSize, sizeEdit && !isAlgorithmActive())) {
                 sizeEdit = !sizeEdit;
@@ -174,6 +177,33 @@ private:
 
     void drawGuiHelp(const Rectangle& rect) {
         DrawRectangleRec(rect, GetColor(GuiGetStyle(DEFAULT, BACKGROUND_COLOR)));
+        constexpr int margin = 10;
+        Rectangle helpGroupBox{ rect.x + margin, rect.y + margin, rect.width - 2 * margin, 0 };
+        constexpr int gap = 5;
+        constexpr int controlHeight = 25;
+        const int controlWidth = helpGroupBox.width - 2 * gap;
+        const int controlX = helpGroupBox.x + gap;
+        int controlY = helpGroupBox.y + 4 * gap - (gap + controlHeight);
+        auto increaseY = [&controlY]() constexpr {
+            controlY += gap + controlHeight;
+            return controlY;
+            };
+        const Rectangle labelToggleFullscreen{ controlX, increaseY(), controlWidth, controlHeight };
+        const Rectangle labelFullscreenMode{ controlX, increaseY(), controlWidth, controlHeight };
+        const Rectangle labelPrev{ controlX, increaseY(), controlWidth, controlHeight };
+        const Rectangle labelNext{ controlX, increaseY(), controlWidth, controlHeight };
+        const Rectangle labelSpace{ controlX, increaseY(), controlWidth, controlHeight };
+        const Rectangle labelStop{controlX, increaseY(), controlWidth, controlHeight};
+        const Rectangle labelToggleHelp{ controlX, increaseY(), controlWidth, controlHeight };
+        GuiLabel(labelToggleFullscreen, "F11 - Toggle fullscreen");
+        GuiLabel(labelFullscreenMode, "F - Toggle fullscreen mode");
+        GuiLabel(labelPrev, "<- - Previous operation");
+        GuiLabel(labelNext, "-> - Next operation");
+        GuiLabel(labelSpace, "Space - Start/Pause");
+        GuiLabel(labelToggleHelp, "F1 - Toggle this panel");
+        GuiLabel(labelStop, "Backspace - Stop");
+        helpGroupBox.height = increaseY();
+        GuiGroupBox(helpGroupBox, "Help");
     }
 
     void drawArray(const Rectangle& rect) {
@@ -238,6 +268,7 @@ private:
     }
 
     bool start() {
+        SetTargetFPS(-1);
         needToStop = false;
         state = State::Running;
         timer.start();
@@ -260,6 +291,7 @@ private:
     }
 
     void stop() {
+        SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
         needToStop = true;
         displayArray.stop();
     }
@@ -319,38 +351,40 @@ public:
 
     void update() {
         processInput();
-        if (swapIsSingleOperation != displayArray.swapIsSingleOperation()) {
-            displayArray.swapIsSingleOperation(swapIsSingleOperation);
-        }
+        if (state == State::Idle) {
+            if (swapIsSingleOperation != displayArray.swapIsSingleOperation()) {
+                displayArray.swapIsSingleOperation(swapIsSingleOperation);
+            }
 
-        if ((state == State::Idle) && (size > 1) && (size <= maxSize) && (size != displayArray.size())) {
-            displayArray.resize(size);
+            if ((size > 1) && (size <= maxSize) && (size != displayArray.size())) {
+                displayArray.resize(size);
+            }
         }
 
         if (needToStop) {
             if (!displayArray.running()) {
                 state = State::Idle;
                 displayArray.sync();
+                displayArray.clear();
             }
         }
 
-        timer.update();
         if (state == State::Running) {
             auto operation = displayArray.peek();
             if (operation) {
-                float operationDelay{};
+                double operationDelay{};
                 switch (operation->type)
                 {
                 case OperationType::Read:
-                    operationDelay = readOperationDelay / 100.0f;
+                    operationDelay = readOperationDelay / 1000.0f;
                     break;
 
                 case OperationType::Write:
-                    operationDelay = writeOperationDelay / 100.0f;
+                    operationDelay = writeOperationDelay / 1000.0f;
                     break;
 
                 case OperationType::Swap:
-                    operationDelay = swapOperationDelay / 100.0f;
+                    operationDelay = swapOperationDelay / 1000.0f;
                     break;
 
                 default:
@@ -362,7 +396,12 @@ public:
                 }
             }
             else if (!displayArray.running()) {
-                pause();
+                if (autoStop) {
+                    stop();
+                }
+                else {
+                    pause();
+                }
             }
         }
     }
@@ -372,7 +411,7 @@ public:
         const int height = Rayutils::GetDisplayHeight();
         const int width = Rayutils::GetDisplayWidth();
         const Rectangle uiRect{ 0, 0, 250, height };
-        const Rectangle helpRect{ width - 250, 0, 250, height };
+        const Rectangle helpRect{ width - 350, 0, 350, height };
         Rectangle arrayRect{ 0, 0, width, height };
         if (!fullscreenMode) {
             drawGuiLeftPanel(uiRect);

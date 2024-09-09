@@ -7,6 +7,7 @@
 int main() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE);
     InitWindow(1600, 900, "Algorithm visualizer");
+    SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
 
     GuiLoadStyleDark();
     Font font = LoadFont("fonts/TerminusTTF-Bold.ttf");

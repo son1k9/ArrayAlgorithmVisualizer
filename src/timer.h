@@ -4,24 +4,16 @@
 
 class Timer {
 private:
-    float time{};
-    bool active = false;
+    double timeStart{};
 public:
     Timer() {}
 
     //If timer is running restarts it
     void start() {
-        time = 0;
-        active = true;
+        timeStart = GetTime();
     }
 
-    float timePassed() const {
-        return time;
-    }
-
-    void update() {
-        if (active) {
-            time += GetFrameTime();
-        }
+    double timePassed() const {
+        return GetTime() - timeStart;
     }
 };

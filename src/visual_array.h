@@ -1,5 +1,6 @@
 #pragma once
 #include <atomic>
+#include <optional>
 #include <vector>
 #include <string_view>
 #include <iostream>
@@ -10,13 +11,12 @@
 #include "callback_array.h"
 #include "operation.h"
 #include "timer.h"
+#include "concurent_vector.h"
 
 class VisualArray {
 private:
-    using OperationsList = std::list<Operation>;
-    OperationsList operations;
-    OperationsList::iterator operationsIt;
-    int currOperationIndex = 0;
+    ConcurentVector<Operation> operations;
+    int currOperationIndex = -1;
     int _currentReadIndex = -1;
     std::vector<int> displayArray;
     CallbackArray sortArray;
@@ -70,15 +70,15 @@ private:
     }
 
     void processWrite(const Operation& operation, bool prev) {
-        displayArray[operation.index] = prev ? operation.data->value1 : operation.data->value2;
+        displayArray[operation.index] = prev ? operation.value1 : operation.value2;
     }
 
     void processSwap(const Operation& operation) {
-        std::swap(displayArray[operation.index], displayArray[operation.data->value1]);
+        std::swap(displayArray[operation.index], displayArray[operation.value1]);
     }
 
 public:
-    VisualArray(int size) : sortArray(size), displayArray(size) {
+    VisualArray(int size) : sortArray(size), displayArray(size), operations(100) {
         sortArray.setGetCallback([this](int index, int value) {
             getCallback(index, value);
             });
@@ -140,17 +140,16 @@ public:
     }
 
     bool hasPrevOperation() const {
-        return currOperationIndex > 1;
+        return currOperationIndex >= 0;
     }
 
     bool prevOperation() {
         if (!hasPrevOperation()) {
             return false;
         }
-        processOperation(*operationsIt--, true);
-        currOperationIndex--;
+        processOperation(operations[currOperationIndex--], true);
         if (hasPrevOperation()) {
-            const auto& op = *operationsIt;
+            const auto op = operations[currOperationIndex];
             if (op.type == OperationType::Read) {
                 processRead(op, false);
             }
@@ -158,21 +157,18 @@ public:
         return true;
     }
 
-    const Operation* peek() {
+    std::optional<Operation> peek() const {
         if (!hasNextOperation()) {
-            return nullptr;
+            return {};
         }
-        auto op = &*++operationsIt;
-        operationsIt--;
-        return op;
+        return operations[currOperationIndex + 1];
     }
 
     bool nextOperation() {
         if (!hasNextOperation()) {
             return false;
         }
-        processOperation(*++operationsIt);
-        currOperationIndex++;
+        processOperation(operations[++currOperationIndex]);
     }
 
     bool start(const Algorithm& algorithm) {
@@ -182,10 +178,8 @@ public:
         _running = true;
         _stop = false;
         _currentReadIndex = -1;
-        operations.clear();
-        currOperationIndex = 0;
-        operations.push_back(createSortStartOpearion());
-        operationsIt = operations.begin();
+        clear();
+        currOperationIndex = -1;
         std::thread th([this](Algorithm algorithm) {
             algorithm.use(sortArray, _stop);
             operations.push_back(createSortEndOperation());
@@ -200,6 +194,7 @@ public:
             return false;
         }
         operations.clear();
+        operations.shrink_to_fit();
     }
 
     bool stop() {

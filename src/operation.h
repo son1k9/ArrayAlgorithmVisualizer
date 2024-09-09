@@ -10,29 +10,28 @@ enum class OperationType {
 };
 
 struct Operation {
-    const OperationType type{};
-    const int index{};
-    struct Data {
-        const int value1{};
-        const int value2{};
-    };
-
-    //Read: nullptr
-    //Write: value1 - oldValue, value2 - newValue
-    //Swap: value1 - index2
-    std::unique_ptr<const Data> data = nullptr;
+    OperationType type{};
+    int index{};
+    //Read: 0
+    //Write: oldValue
+    //Swap: index2
+    int value1{};
+    //Read: 0
+    //Write: newValue
+    //Swap: 0 
+    int value2{};
 };
 
 inline Operation createReadOperation(int index) {
-    return Operation{ OperationType::Read, index, nullptr };
+    return Operation{ OperationType::Read, index };
 }
 
 inline Operation createWriteOperation(int index, int oldValue, int newValue) {
-    return Operation{ OperationType::Write, index, std::make_unique<Operation::Data>(oldValue, newValue) };
+    return Operation{ OperationType::Write, index, oldValue, newValue };
 }
 
 inline Operation createSwapOperation(int index1, int index2) {
-    return Operation{ OperationType::Swap, index1, std::make_unique<Operation::Data>(index2) };
+    return Operation{ OperationType::Swap, index1, index2 };
 }
 
 inline Operation createSortEndOperation() {
