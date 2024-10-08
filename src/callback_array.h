@@ -1,36 +1,25 @@
 #pragma once
 #include <vector>
 #include <functional>
-#include <stdexcept>
-#include <format>
-#include <assert.h>
 
 class CallbackArray {
 public:
     //Parameters: index, value
-    using GetCallback = std::function<void(int, int)>;
+    using GetCallback = std::function<void(int, short)>;
     //Parameters: index, oldValue, newValue 
-    using SetCallback = std::function<void(int, int, int)>;
-    //Parameters: index1, index2 
-    using SwapCallback = std::function<void(int, int)>;
+    using SetCallback = std::function<void(int, short, short)>;
 
     bool callback = true;
-    bool swapIsSingleOperation = true;
 
 private:
     GetCallback getCallback;
     SetCallback setCallback;
-    SwapCallback swapCallback;
-    std::vector<int> data;
-
-    void checkIndex(int index) const {
-        assert((index >= 0 && index < data.size()));
-    }
+    std::vector<short> data;
 
 public:
     CallbackArray(int size) : data(size) {};
-    CallbackArray(const std::vector<int>& data) : data{ data } {};
-    CallbackArray(std::vector<int>&& data) : data{ std::move(data) } {};
+    CallbackArray(const std::vector<short>& data) : data{ data } {};
+    CallbackArray(std::vector<short>&& data) : data{ std::move(data) } {};
 
     int size() const {
         return data.size();
@@ -40,8 +29,7 @@ public:
         data.resize(size);
     }
 
-    int at(size_t index) const {
-        checkIndex(index);
+    short at(size_t index) const {
         const int value = data[index];
         if (callback && getCallback) {
             getCallback(index, value);
@@ -49,8 +37,7 @@ public:
         return value;
     }
 
-    void set(int index, int value) {
-        checkIndex(index);
+    void set(int index, short value) {
         int oldValue = data[index];
         data[index] = value;
         if (callback && setCallback) {
@@ -59,19 +46,12 @@ public:
     }
 
     void swap(int index1, int index2) {
-        checkIndex(index1);
-        checkIndex(index2);
         std::swap(data[index1], data[index2]);
-        if (callback && swapCallback) {
-            if (swapIsSingleOperation) {
-                swapCallback(index1, index2);
-            }
-            else {
-                getCallback(index1, data[index2]);
-                getCallback(index2, data[index1]);
-                setCallback(index1, data[index2], data[index1]);
-                setCallback(index2, data[index1], data[index2]);
-            }
+        if (callback && setCallback && getCallback) {
+            getCallback(index1, data[index2]);
+            getCallback(index2, data[index1]);
+            setCallback(index1, data[index2], data[index1]);
+            setCallback(index2, data[index1], data[index2]);
         }
     }
 
@@ -81,9 +61,5 @@ public:
 
     void setSetCallback(SetCallback callback) {
         setCallback = callback;
-    }
-
-    void setSwapCallback(SwapCallback callback) {
-        swapCallback = callback;
     }
 };

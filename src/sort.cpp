@@ -99,7 +99,7 @@ static void buildMaxHeap(CallbackArray& array, std::atomic<bool>& stop) {
     }
 }
 
-void extractMax(CallbackArray& array, int& lenght) {
+static void extractMax(CallbackArray& array, int& lenght) {
     array.swap(0, lenght - 1);
     lenght--;
     heapifyDown(array, 0, lenght);
@@ -109,6 +109,9 @@ void heapSort(CallbackArray& array, std::atomic<bool>& stop) {
     buildMaxHeap(array, stop);
     int lenght = array.size();
     for (int i = 0; i < array.size(); i++) {
+        if (stop) {
+            return;
+        }
         extractMax(array, lenght);
     }
 }

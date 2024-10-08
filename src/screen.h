@@ -1,8 +1,5 @@
 #pragma once
 #include <vector>
-#include <thread>
-#include <string>
-#include <numeric>
 #include "raylib.h"
 #include "raygui.h"
 #include "rayutils.h"
@@ -17,23 +14,20 @@ class MainScreen {
 private:
     enum class State {
         Idle,
-        Running,
-        Paused
+        Running
     };
 
     State state = State::Idle;
 
-    int size = 10;
-    int swapOperationDelay = 1;
-    int readOperationDelay = 1;
-    int writeOperationDelay = 1;
+    int size{};
+    int readDelay{};
+    int writeDelay{};
 
     std::vector<Algorithm> sortingAlgorithms;
     std::string sortingAlgorithmsString;
     std::vector<Algorithm> shuffleAlgorithms;
     std::string shuffleAlgorithmsString;
     VisualArray displayArray;
-    Timer timer;
 
     int chosenAlgorithm = 0;
     bool algorithmEdit = false;
@@ -43,17 +37,14 @@ private:
     bool sizeEdit = false;
     bool readDelayEdit = false;
     bool writeDelayEdit = false;
-    bool swapDelayEdit = false;
     bool fullscreenMode = false;
     bool drawHelp = true;
-    bool autoStop = true;
     const char* algorithmsStringPtr{};
-    bool swapIsSingleOperation = true;
 
     bool needToStop = false;
 
-    bool isAlgorithmActive() {
-        return state == State::Running || state == State::Paused;
+    bool isAlgorithmActive() const {
+        return state == State::Running;
     }
 
     void drawGuiLeftPanel(const Rectangle& leftPanel) {
@@ -82,10 +73,6 @@ private:
             const Rectangle spinnerReadDelay{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle labelWriteDelay{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle spinnerWriteDelay{ controlX, increaseY(),  controlWidth, controlHeight };
-            const Rectangle labelSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
-            const Rectangle spinnerSwapDelay{ controlX, increaseY(), controlWidth, controlHeight };
-            const Rectangle checkboxSwap{ controlX, increaseY(), controlHeight, controlHeight };
-            const Rectangle checkboxAutoStop{ controlX, increaseY(), controlHeight, controlHeight };
             GuiSetStyle(DEFAULT, TEXT_SIZE, 22);
             if (algorithmEdit || algorithmTypeEdit) {
                 GuiLock();
@@ -93,23 +80,17 @@ private:
             if (state == State::Running) {
                 GuiDisable();
             }
-            GuiLabel(labelSwapDelay, "Swap delay");
-            if (GuiSpinner(spinnerSwapDelay, NULL, &swapOperationDelay, 0, 10, swapDelayEdit)) {
-                swapDelayEdit = !swapDelayEdit;
-            }
             GuiLabel(labelWriteDelay, "Write delay");
-            if (GuiSpinner(spinnerWriteDelay, NULL, &writeOperationDelay, 0, 10, writeDelayEdit)) {
+            if (GuiSpinner(spinnerWriteDelay, NULL, &writeDelay, 0, 10, writeDelayEdit)) {
                 writeDelayEdit = !writeDelayEdit;
             }
             GuiLabel(labelReadDelay, "Read delay");
-            if (GuiSpinner(spinnerReadDelay, NULL, &readOperationDelay, 0, 10, readDelayEdit)) {
+            if (GuiSpinner(spinnerReadDelay, NULL, &readDelay, 0, 10, readDelayEdit)) {
                 readDelayEdit = !readDelayEdit;
             }
             if (isAlgorithmActive()) {
                 GuiDisable();
             }
-            GuiCheckBox(checkboxSwap, "Swap is single op", &swapIsSingleOperation);
-            GuiCheckBox(checkboxAutoStop, "Auto stop", &autoStop);
             GuiLabel(labelSize, "Array size");
             if (GuiSpinner(spinnerSize, NULL, &size, 2, maxSize, sizeEdit && !isAlgorithmActive())) {
                 sizeEdit = !sizeEdit;
@@ -144,14 +125,6 @@ private:
 
         drawSettings();
         constexpr int startButtonHeight = 50;
-        Rectangle stopButton{ margin, leftPanel.height - 2 * margin - 2 * startButtonHeight, leftPanel.width - 2 * margin, startButtonHeight };
-        if (state == State::Idle) {
-            GuiDisable();
-        }
-        if (GuiButton(stopButton, "Stop")) {
-            stop();
-        }
-        GuiEnable();
         Rectangle button{ margin, leftPanel.height - margin - startButtonHeight, leftPanel.width - 2 * margin, startButtonHeight };
         switch (state)
         {
@@ -162,14 +135,8 @@ private:
             break;
 
         case State::Running:
-            if (GuiButton(button, "Pause")) {
-                pause();
-            }
-            break;
-
-        case State::Paused:
-            if (GuiButton(button, "Continue")) {
-                cont();
+            if (GuiButton(button, "Stop")) {
+                stop();
             }
             break;
         }
@@ -190,15 +157,11 @@ private:
             };
         const Rectangle labelToggleFullscreen{ controlX, increaseY(), controlWidth, controlHeight };
         const Rectangle labelFullscreenMode{ controlX, increaseY(), controlWidth, controlHeight };
-        const Rectangle labelPrev{ controlX, increaseY(), controlWidth, controlHeight };
-        const Rectangle labelNext{ controlX, increaseY(), controlWidth, controlHeight };
         const Rectangle labelSpace{ controlX, increaseY(), controlWidth, controlHeight };
-        const Rectangle labelStop{controlX, increaseY(), controlWidth, controlHeight};
+        const Rectangle labelStop{ controlX, increaseY(), controlWidth, controlHeight };
         const Rectangle labelToggleHelp{ controlX, increaseY(), controlWidth, controlHeight };
         GuiLabel(labelToggleFullscreen, "F11 - Toggle fullscreen");
         GuiLabel(labelFullscreenMode, "F - Toggle fullscreen mode");
-        GuiLabel(labelPrev, "<- - Previous operation");
-        GuiLabel(labelNext, "-> - Next operation");
         GuiLabel(labelSpace, "Space - Start/Pause");
         GuiLabel(labelToggleHelp, "F1 - Toggle this panel");
         GuiLabel(labelStop, "Backspace - Stop");
@@ -232,7 +195,7 @@ private:
     }
 
     bool isGuiEditMode() const {
-        return algorithmEdit || sizeEdit || readDelayEdit || writeDelayEdit || swapDelayEdit;
+        return algorithmEdit || sizeEdit || readDelayEdit || writeDelayEdit;
     }
 
     void init() {
@@ -268,10 +231,8 @@ private:
     }
 
     bool start() {
-        SetTargetFPS(-1);
         needToStop = false;
         state = State::Running;
-        timer.start();
         switch (chosenAlgorithmType)
         {
         case static_cast<int>(AlgorithmType::Sort):
@@ -282,16 +243,7 @@ private:
         }
     }
 
-    void pause() {
-        state = State::Paused;
-    }
-
-    void cont() {
-        state = State::Running;
-    }
-
     void stop() {
-        SetTargetFPS(GetMonitorRefreshRate(GetCurrentMonitor()));
         needToStop = true;
         displayArray.stop();
     }
@@ -313,30 +265,9 @@ private:
             Rayutils::toggleFullScreen();
         }
 
-        if (IsKeyPressed(KEY_LEFT)) {
-            if (state == State::Paused) {
-                displayArray.prevOperation();
-            }
-        }
-        else if (IsKeyPressed(KEY_RIGHT)) {
-            if (state == State::Paused) {
-                displayArray.nextOperation();
-            }
-        }
         else if (IsKeyPressed(KEY_SPACE)) {
-            switch (state)
-            {
-            case State::Running:
-                pause();
-                break;
-
-            case State::Idle:
+            if (state == State::Idle) {
                 start();
-                break;
-
-            case State::Paused:
-                cont();
-                break;
             }
         }
         else if (IsKeyPressed(KEY_BACKSPACE)) {
@@ -344,64 +275,30 @@ private:
         }
     }
 public:
-    MainScreen() : displayArray{ size } {
+    MainScreen(int size = 10, int readDelay = 1, int writeDelay = 1)
+        : size{ size }, readDelay{ readDelay }, writeDelay{ writeDelay }, displayArray{ size, readDelay, writeDelay } {
         init();
         initGui();
     }
 
     void update() {
         processInput();
-        if (state == State::Idle) {
-            if (swapIsSingleOperation != displayArray.swapIsSingleOperation()) {
-                displayArray.swapIsSingleOperation(swapIsSingleOperation);
-            }
 
+        if (state == State::Idle) {
             if ((size > 1) && (size <= maxSize) && (size != displayArray.size())) {
                 displayArray.resize(size);
             }
-        }
-
-        if (needToStop) {
-            if (!displayArray.running()) {
-                state = State::Idle;
-                displayArray.sync();
-                displayArray.clear();
+            if (readDelay >= 0 && readDelay <= 10) {
+                displayArray.readDelay = readDelay;
+            }
+            if (writeDelay >= 0 && writeDelay <= 10) {
+                displayArray.writeDelay = writeDelay;
             }
         }
 
         if (state == State::Running) {
-            auto operation = displayArray.peek();
-            if (operation) {
-                double operationDelay{};
-                switch (operation->type)
-                {
-                case OperationType::Read:
-                    operationDelay = readOperationDelay / 1000.0f;
-                    break;
-
-                case OperationType::Write:
-                    operationDelay = writeOperationDelay / 1000.0f;
-                    break;
-
-                case OperationType::Swap:
-                    operationDelay = swapOperationDelay / 1000.0f;
-                    break;
-
-                default:
-                    break;
-                }
-                if (timer.timePassed() > operationDelay) {
-                    timer.start();
-                    displayArray.nextOperation();
-                }
-            }
-            else if (!displayArray.running()) {
-                if (autoStop) {
-                    stop();
-                }
-                else {
-                    pause();
-                }
+            if (!displayArray.running()) {
+                state = State::Idle;
             }
         }
     }

@@ -1,6 +1,5 @@
 #pragma once
 #include <atomic>
-#include <functional>
 #include "callback_array.h"
 
 enum class AlgorithmType {

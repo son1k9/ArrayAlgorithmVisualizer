@@ -1,27 +1,17 @@
 #pragma once
+#include <chrono>
 #include <atomic>
-#include <optional>
 #include <vector>
-#include <string_view>
-#include <iostream>
-#include <functional>
 #include <thread>
-#include <format>
-#include "raylib.h"
 #include "callback_array.h"
-#include "operation.h"
-#include "timer.h"
-#include "concurent_vector.h"
 
 class VisualArray {
 private:
-    ConcurentVector<Operation> operations;
-    int currOperationIndex = -1;
-    int _currentReadIndex = -1;
-    std::vector<int> displayArray;
+    int currentReadIndex_ = -1;
+    std::vector<short> displayArray;
     CallbackArray sortArray;
-    std::atomic<bool> _stop = false;
-    std::atomic<bool> _running = false;
+    std::atomic<bool> stop_ = false;
+    bool running_ = false;
 
     void fillArray(int size) {
         sortArray.callback = false;
@@ -32,87 +22,43 @@ private:
         sortArray.callback = true;
     }
 
-    void getCallback(int index, int value) {
-        operations.push_back(createReadOperation(index));
-    }
-
-    void setCallback(int index, int oldValue, int newValue) {
-        operations.push_back(createWriteOperation(index, oldValue, newValue));
-    }
-
-    void swapCallback(int index1, int index2) {
-        operations.push_back(createSwapOperation(index1, index2));
-    }
-
-    void processOperation(const Operation& operation, bool prev = false) {
-        _currentReadIndex = -1;
-        switch (operation.type)
-        {
-        case OperationType::Read:
-            processRead(operation, prev);
-            break;
-
-        case OperationType::Write:
-            processWrite(operation, prev);
-            break;
-
-        case OperationType::Swap:
-            processSwap(operation);
-            break;
+    void getCallback(int index, short value) {
+        currentReadIndex_ = index;
+        if (readDelay) {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(readDelay * 100));
         }
     }
 
-    void processRead(const Operation& operation, bool prev) {
-        if (prev) {
-            return;
+    void setCallback(int index, short oldValue, short newValue) {
+        displayArray[index] = newValue;
+        if (writeDelay) {
+            std::this_thread::sleep_for(std::chrono::nanoseconds(writeDelay * 100));
         }
-        _currentReadIndex = operation.index;
-    }
-
-    void processWrite(const Operation& operation, bool prev) {
-        displayArray[operation.index] = prev ? operation.value1 : operation.value2;
-    }
-
-    void processSwap(const Operation& operation) {
-        std::swap(displayArray[operation.index], displayArray[operation.value1]);
     }
 
 public:
-    VisualArray(int size) : sortArray(size), displayArray(size), operations(100) {
-        sortArray.setGetCallback([this](int index, int value) {
+    VisualArray(int size, int readDelay, int writeDelay)
+        : readDelay{ readDelay }, writeDelay{ writeDelay }, sortArray(size), displayArray(size) {
+        sortArray.setGetCallback([this](int index, short value) {
             getCallback(index, value);
             });
-        sortArray.setSetCallback([this](int index, int oldValue, int newValue) {
+        sortArray.setSetCallback([this](int index, short oldValue, short newValue) {
             setCallback(index, oldValue, newValue);
             });
-        sortArray.setSwapCallback([this](int index1, int index2) {
-            swapCallback(index1, index2);
-            });
+
         fillArray(size);
     }
+
+    int readDelay{};
+    int writeDelay{};
 
     VisualArray(const VisualArray&) = delete;
     VisualArray(VisualArray&&) = delete;
     VisualArray& operator=(const VisualArray&) = delete;
     VisualArray& operator=(VisualArray&&) = delete;
 
-    void sync() {
-        if (_running) {
-            return;
-        }
-        if (!hasNextOperation()) {
-            return;
-        }
-
-        sortArray.callback = false;
-        for (int i = 0; i < displayArray.size(); i++) {
-            sortArray.set(i, displayArray[i]);
-        }
-        sortArray.callback = true;
-    }
-
     bool running() const {
-        return _running;
+        return running_;
     }
 
     int operator[](size_t index) const {
@@ -120,96 +66,40 @@ public:
     }
 
     int currentReadIndex() const {
-        return _currentReadIndex;
-    }
-
-    void swapIsSingleOperation(bool value) {
-        sortArray.swapIsSingleOperation = value;
-    }
-
-    bool swapIsSingleOperation() const {
-        return sortArray.swapIsSingleOperation;
+        return currentReadIndex_;
     }
 
     size_t size() const {
         return displayArray.size();
     }
 
-    bool hasNextOperation() const {
-        return currOperationIndex + 1 < operations.size();
-    }
-
-    bool hasPrevOperation() const {
-        return currOperationIndex >= 0;
-    }
-
-    bool prevOperation() {
-        if (!hasPrevOperation()) {
-            return false;
-        }
-        processOperation(operations[currOperationIndex--], true);
-        if (hasPrevOperation()) {
-            const auto op = operations[currOperationIndex];
-            if (op.type == OperationType::Read) {
-                processRead(op, false);
-            }
-        }
-        return true;
-    }
-
-    std::optional<Operation> peek() const {
-        if (!hasNextOperation()) {
-            return {};
-        }
-        return operations[currOperationIndex + 1];
-    }
-
-    bool nextOperation() {
-        if (!hasNextOperation()) {
-            return false;
-        }
-        processOperation(operations[++currOperationIndex]);
-    }
-
     bool start(const Algorithm& algorithm) {
-        if (_running) {
+        if (running_) {
             return false;
         }
-        _running = true;
-        _stop = false;
-        _currentReadIndex = -1;
-        clear();
-        currOperationIndex = -1;
+        running_ = true;
+        stop_ = false;
+        currentReadIndex_ = -1;
         std::thread th([this](Algorithm algorithm) {
-            algorithm.use(sortArray, _stop);
-            operations.push_back(createSortEndOperation());
-            _running = false;
+            algorithm.use(sortArray, stop_);
+            running_ = false;
             }, algorithm);
         th.detach();
         return true;
     }
 
-    bool clear() {
-        if (_running) {
-            return false;
-        }
-        operations.clear();
-        operations.shrink_to_fit();
-    }
-
     bool stop() {
-        if (!_running) {
+        if (!running_) {
             return false;
         }
-        _stop = true;
+        stop_ = true;
         return true;
     }
 
     bool resize(int size) {
-        if (_running) {
+        if (running_) {
             return false;
         }
-        operations.clear();
         displayArray.resize(size);
         sortArray.resize(size);
         fillArray(size);
