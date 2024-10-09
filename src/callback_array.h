@@ -14,23 +14,27 @@ public:
 private:
     GetCallback getCallback;
     SetCallback setCallback;
-    std::vector<short> data;
+    std::vector<short> data_;
 
 public:
-    CallbackArray(int size) : data(size) {};
-    CallbackArray(const std::vector<short>& data) : data{ data } {};
-    CallbackArray(std::vector<short>&& data) : data{ std::move(data) } {};
+    CallbackArray(int size) : data_(size) {};
+    CallbackArray(const std::vector<short>& data_) : data_{ data_ } {};
+    CallbackArray(std::vector<short>&& data_) : data_{ std::move(data_) } {};
+
+    const std::vector<short>& data() const {
+        return data_;
+    }
 
     int size() const {
-        return data.size();
+        return data_.size();
     }
 
     void resize(size_t size) {
-        data.resize(size);
+        data_.resize(size);
     }
 
     short at(size_t index) const {
-        const int value = data[index];
+        const int value = data_[index];
         if (callback && getCallback) {
             getCallback(index, value);
         }
@@ -38,20 +42,20 @@ public:
     }
 
     void set(int index, short value) {
-        int oldValue = data[index];
-        data[index] = value;
+        int oldValue = data_[index];
+        data_[index] = value;
         if (callback && setCallback) {
             setCallback(index, oldValue, value);
         }
     }
 
     void swap(int index1, int index2) {
-        std::swap(data[index1], data[index2]);
+        std::swap(data_[index1], data_[index2]);
         if (callback && setCallback && getCallback) {
-            getCallback(index1, data[index2]);
-            getCallback(index2, data[index1]);
-            setCallback(index1, data[index2], data[index1]);
-            setCallback(index2, data[index1], data[index2]);
+            getCallback(index1, data_[index2]);
+            getCallback(index2, data_[index1]);
+            setCallback(index1, data_[index2], data_[index1]);
+            setCallback(index2, data_[index1], data_[index2]);
         }
     }
 

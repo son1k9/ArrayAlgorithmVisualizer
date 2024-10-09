@@ -1,4 +1,5 @@
 #include <atomic>
+#include <vector>
 #include "shuffle.h"
 #include "callback_array.h"
 #include "sort.h"
@@ -26,7 +27,7 @@ static int partionMid(CallbackArray& array, int l, int r) {
     }
 }
 
-static void _quickSort(CallbackArray& array, int l, int r, std::atomic<bool>& stop) {
+static void quickSort_(CallbackArray& array, int l, int r, std::atomic<bool>& stop) {
     if (stop) {
         return;
     }
@@ -36,12 +37,12 @@ static void _quickSort(CallbackArray& array, int l, int r, std::atomic<bool>& st
     }
 
     const int pivot = partionMid(array, l, r);
-    _quickSort(array, l, pivot, stop);
-    _quickSort(array, pivot + 1, r, stop);
+    quickSort_(array, l, pivot, stop);
+    quickSort_(array, pivot + 1, r, stop);
 }
 
 void quickSort(CallbackArray& array, std::atomic<bool>& stop) {
-    _quickSort(array, 0, array.size() - 1, stop);
+    quickSort_(array, 0, array.size() - 1, stop);
 }
 
 void insertionSort(CallbackArray& array, std::atomic<bool>& stop) {
@@ -224,4 +225,52 @@ void bogoSort(CallbackArray& array, std::atomic<bool>& stop) {
         }
         standartShuffle(array, stop);
     }
+}
+
+void miracleSort(CallbackArray& array, std::atomic<bool>& stop) {
+    bool sorted = false;
+    while (!sorted && !stop) {
+        sorted = isSorted(array);
+    }
+}
+
+static void merge(CallbackArray& array, int l, int mid, int r, CallbackArray& copy) {
+    int i, j, k;
+    for (i = l, j = mid + 1, k = l; i <= mid && j <= r; k++)
+    {
+        if (copy.at(i) <= copy.at(j)) {
+            array.set(k, copy.at(i++));
+        }
+        else {
+            array.set(k, copy.at(j++));
+        }
+    }
+
+    while (i <= mid) {
+        array.set(k++, copy.at(i++));
+    }
+
+    while (j <= r) {
+        array.set(k++, copy.at(j++));
+    }
+}
+
+static void mergeSort_(CallbackArray& array, int l, int r, CallbackArray& copy, std::atomic<bool>& stop) {
+    if (stop) {
+        return;
+    }
+
+    if (l >= r) {
+        return;
+    }
+
+    int mid = l + (r - l) / 2;
+    mergeSort_(copy, l, mid, array, stop);
+    mergeSort_(copy, mid + 1, r, array, stop);
+    merge(array, l, mid, r, copy);
+}
+
+void mergeSort(CallbackArray& array, std::atomic<bool>& stop) {
+    CallbackArray copy(array.data());
+    mergeSort_(array, 0, array.size() - 1, copy, stop);
 }

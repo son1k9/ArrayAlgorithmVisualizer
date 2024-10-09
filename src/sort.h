@@ -10,3 +10,5 @@ void doubleSelectionSort(CallbackArray& array, std::atomic<bool>& stop);
 void bubbleSort(CallbackArray& array, std::atomic<bool>& stop);
 void shakerSort(CallbackArray& array, std::atomic<bool>& stop);
 void bogoSort(CallbackArray& array, std::atomic<bool>& stop);
+void miracleSort(CallbackArray& array, std::atomic<bool>& stop);
+void mergeSort(CallbackArray& array, std::atomic<bool>& stop);

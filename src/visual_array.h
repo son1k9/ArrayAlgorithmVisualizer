@@ -3,7 +3,11 @@
 #include <atomic>
 #include <vector>
 #include <thread>
+#include "raylib.h"
 #include "callback_array.h"
+#include "audio.h"
+
+#define SOUND_SUSTAIN 0.05f
 
 class VisualArray {
 private:
@@ -23,16 +27,19 @@ private:
     }
 
     void getCallback(int index, short value) {
+        pushSound(sineWave, readDelay / 500.f / SOUND_SUSTAIN, (float)displayArray[index] / displayArray.size(), SOUND_SUSTAIN);
         currentReadIndex_ = index;
         if (readDelay) {
-            std::this_thread::sleep_for(std::chrono::nanoseconds(readDelay * 100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(readDelay));
         }
     }
 
     void setCallback(int index, short oldValue, short newValue) {
+        pushSound(triangleWave, writeDelay / 500.f / SOUND_SUSTAIN, (float)displayArray[index] / displayArray.size(), SOUND_SUSTAIN);
+        currentReadIndex_ = -1;
         displayArray[index] = newValue;
         if (writeDelay) {
-            std::this_thread::sleep_for(std::chrono::nanoseconds(writeDelay * 100));
+            std::this_thread::sleep_for(std::chrono::milliseconds(writeDelay));
         }
     }
 

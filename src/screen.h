@@ -8,10 +8,10 @@
 #include "shuffle.h"
 #include "visual_array.h"
 
-inline constexpr int maxSize = 1024;
 
 class MainScreen {
 private:
+    const int maxSize = GetMonitorHeight(GetCurrentMonitor()) - 40;
     enum class State {
         Idle,
         Running
@@ -73,6 +73,8 @@ private:
             const Rectangle spinnerReadDelay{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle labelWriteDelay{ controlX, increaseY(), controlWidth, controlHeight };
             const Rectangle spinnerWriteDelay{ controlX, increaseY(),  controlWidth, controlHeight };
+            settingsGroupBox.height = increaseY();
+            GuiGroupBox(settingsGroupBox, "Settings");
             GuiSetStyle(DEFAULT, TEXT_SIZE, 22);
             if (algorithmEdit || algorithmTypeEdit) {
                 GuiLock();
@@ -116,9 +118,7 @@ private:
                     chosenAlgorithm = 0;
                 }
             }
-            settingsGroupBox.height = increaseY();
             GuiSetStyle(DEFAULT, TEXT_SIZE, 24);
-            GuiGroupBox(settingsGroupBox, "Settings");
             GuiUnlock();
             GuiEnable();
             };
@@ -169,7 +169,7 @@ private:
         GuiGroupBox(helpGroupBox, "Help");
     }
 
-    void drawArray(const Rectangle& rect) {
+    void drawArray(const Rectangle& rect, const VisualArray& displayArray) {
         const int padding = 20;
         const int elementWidth = (rect.width - padding * 2) / displayArray.size();
         const float elementWidthError = (rect.width - padding * 2) / displayArray.size() - elementWidth;
@@ -200,6 +200,7 @@ private:
 
     void init() {
         sortingAlgorithms.push_back(Algorithm{ quickSort, "Quick sort" });
+        sortingAlgorithms.push_back(Algorithm{ mergeSort, "Merge sort" });
         sortingAlgorithms.push_back(Algorithm{ insertionSort, "Insertion sort" });
         sortingAlgorithms.push_back(Algorithm{ heapSort, "Heap sort" });
         sortingAlgorithms.push_back(Algorithm{ selectionSort, "Selection sort" });
@@ -207,6 +208,7 @@ private:
         sortingAlgorithms.push_back(Algorithm{ bubbleSort, "Bubble sort" });
         sortingAlgorithms.push_back(Algorithm{ shakerSort, "Shaker sort" });
         sortingAlgorithms.push_back(Algorithm{ bogoSort, "Bogo sort" });
+        sortingAlgorithms.push_back(Algorithm{ miracleSort, "Miracle Sort" });
 
         shuffleAlgorithms.push_back(Algorithm{ standartShuffle, "Standart shuffle" });
     }
@@ -318,6 +320,6 @@ public:
                 arrayRect.width -= helpRect.width;
             }
         }
-        drawArray(arrayRect);
+        drawArray(arrayRect, displayArray);
     }
 };
